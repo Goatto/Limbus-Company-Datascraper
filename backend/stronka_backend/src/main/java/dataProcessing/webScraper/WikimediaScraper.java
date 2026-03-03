@@ -138,6 +138,7 @@ public class WikimediaScraper
                     {
                         System.out.print(specifiedRow.get(1).text() + '\n');
                     }
+                    // Zawsze resistances, będę musiał jakoś wyjąć tylko wartości z nawiasów klamrowych
                     if(specifiedRowSize == 3 && !specifiedRow.getFirst().text().isEmpty())
                     {
                         System.out.print(specifiedRow.getFirst().text() + ' ');
@@ -184,22 +185,48 @@ public class WikimediaScraper
                     }
                 }
                 // Sanity, tylko ID je mają więc sprawdzamy
-                if(category.text().equals("Identities"))
-                {
+                if(category.text().equals("Identities")) {
                     largeSelector = htmlContent.select("#Sanity-0 table tr td div");
-                    for(Element row : largeSelector)
-                    {
+                    for (Element row : largeSelector) {
+
                         // Muszę teraz jakoś przejść przez wszystkie linijki i je połączyć sensownie
-                        if(row.select("ul span b").text().contains("increasing Sanity"))
-                        {
+                        if (row.select("ul span").text().contains("increasing Sanity")) {
                             System.out.println("+Saniity");
+                            // Może jakiegoś splita mogę zrobić przed słowem 'Increase'
+                            System.out.println(row.child(1).text());
                         }
-                        if(row.select("ul span b").text().contains("decreasing Sanity"))
-                        {
+                        if (row.select("ul span").text().contains("decreasing Sanity")) {
                             System.out.println("-Saniity");
+                            // Dito, ale dla 'Decrease'
+                            System.out.println(row.child(1).text());
                         }
                     }
+                    // Złapanie umiejętności w EGO jest kompletnie inne i kompletnie zjebane
+                    largeSelector = htmlContent.select(".tabber .tabber__section [id^=Skill_1-]");
+                    for(Element element : largeSelector)
+                    {
+                        // TODO
+                        // Łapiesz element, musisz z tego miejsca wyjąć kilka rzeczy
+                        // Ikonke skilla, jak i jej sin (sin akurat mogę wyjąć z ikonki, bo obramowanie ma nazwe)
+                            // Łapanie ikonek będzie ZJEBANE
+                            // Chyba będe musiał stworzyć jakąś mapę, która zawiera te wartości dla s1 s2 s3 defense itp.
+                            // Przynajmniej na wiki są deskryptywnie opisane pliki (np. Envy1.png, Envy1Bg.png, a umiejętności kończą się na ...Icon.png)
+                            // bg w sumie nie musze łapać, gdyż obrazek ten nie zawiera czegokolwiek unikalnego czego nie utrzymamy po połączeniu zwykłego obramowania plus ikonki
+                        // Typ ataku (i.e. blunt/slash/pierce)
+                        // Dodatkowy offense-level
+                        // Attack weight
+                        // Conditionale
+                        // I DOPIERO MONETY PO MONECIE
+                            // Umiejętności może zapisywać jako cztery listy list?
+                            // W sensie, 1-0, 1-1, ... idzie do pierwszej listy w liście, w pierwszej indeksie podajemy nazwe umiejętności
+                            // a w kolejnych pojedyncze monety, wtedy łatwo mogę zrobić -1 by ustalić ilość monet
+                            // Tak samo dla kolejnych umiejętności, przechodzimy do drugiej listy w pierwszej liście list itd.
+                        System.out.println(element.text());
+                    }
+                    // Support paswyki są tylko dla id, więc tylko tu też będą
                 }
+                // Pasywki w EGO mogę tak samo łapać jak combat passives w ID, pewnie będę szukał div'a, który ma b o wartości ...passives,
+                // po czym przechodził do jego parenta i wszystko zapierdalał
                 break;
             }
             if(category.text().equals("Status Effect Pages"))
