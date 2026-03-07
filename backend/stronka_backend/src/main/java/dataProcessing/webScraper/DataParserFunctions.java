@@ -22,7 +22,7 @@ public class DataParserFunctions
             // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
             // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
             List<String> urls = List.of(
-                    //    ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
+                    ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
                     ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
             // List<String> url = List.of("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang");
 
@@ -100,18 +100,8 @@ public class DataParserFunctions
         Elements categories = htmlContent.select("#catlinks .mw-normal-catlinks ul li");
         for(Element category : categories)
         {
-            Element smallSelector;
             if(category.text().equals("E.G.O") || category.text().equals("Identities"))
             {
-
-                smallSelector = htmlContent.selectFirst(".mw-page-title-main");
-                String unitTitle = (smallSelector != null) ? smallSelector.text() : "No title";
-                System.out.println(unitTitle);
-
-                smallSelector = htmlContent.selectFirst(".mw-collapsible-content a");
-                String unitPotrait = (smallSelector != null) ? smallSelector.attr("abs:href") : "No portrait";
-                System.out.println(unitPotrait);
-
                 WikimediaScraperFunctions.scrapeGeneralData(htmlContent);
 
                 if (category.text().equals("Identities"))

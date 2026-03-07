@@ -1,4 +1,9 @@
 package dataProcessing.webScraper;
 
-public record FormatedScraperData() {
+public class FormatedScraperData
+{
+    public record FormatedIDData()
+    {
+
+    }
 }

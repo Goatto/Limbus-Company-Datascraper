@@ -8,10 +8,22 @@ import org.jsoup.select.Elements;
 import java.util.List;
 import java.util.Optional;
 
+import static dataProcessing.webScraper.ImageScraper.scrapeImageURL;
+
 public class WikimediaScraperFunctions
 {
+
+    // Nie korzystać z tego za często, później dorobię funkcję, która ręcznie pobierze takie obrazki jak threat level,
+    // jak i generic ikonki
+
     public static void scrapeGeneralData(Document htmlContent)
     {
+        Element smallSelector = htmlContent.selectFirst(".mw-page-title-main");
+        String unitTitle = (smallSelector != null) ? smallSelector.text() : "No title";
+        System.out.println(unitTitle);
+
+        smallSelector = htmlContent.selectFirst(".mw-collapsible-content a img");
+        scrapeImageURL(smallSelector);
         Elements largeSelector = htmlContent.select("#General_Info-0 table tr");
         for (Element row : largeSelector)
         {
@@ -65,12 +77,16 @@ public class WikimediaScraperFunctions
                 }
                 if(rowType.equals("RarityWorld"))
                 {
-                    System.out.println("Rarity : " + Optional.ofNullable(specifiedRow.get(1).selectFirst("img"))
+                    Element rarityIMG = specifiedRow.get(1).selectFirst("img");
+                    System.out.println("Rarity : " + Optional.ofNullable(rarityIMG)
                             .map(img -> img.attr("alt"))
                             .orElse("Image not found"));
-                    System.out.println("World : " + Optional.ofNullable(specifiedRow.get(3).selectFirst("img"))
+
+                    Element worldIMG = specifiedRow.get(3).selectFirst("img");
+                    System.out.println("World : " + Optional.ofNullable(worldIMG)
                             .map(img -> img.attr("alt"))
                             .orElse("Image not found"));
+                    scrapeImageURL(worldIMG);
                 }
                 if(rowType.equals("SeasonRelease"))
                 {
@@ -94,7 +110,8 @@ public class WikimediaScraperFunctions
         {
             Element sanityBox;
             // Muszę teraz jakoś przejść przez wszystkie linijki i je połączyć sensownie
-            if (row.select("ul span").text().contains("increasing Sanity")) {
+            if (row.select("ul span").text().contains("increasing Sanity"))
+            {
                 System.out.println("Sanity+:");
                 // Może jakiegoś splita mogę zrobić przed słowem 'Increase'
                 sanityBox = row.child(1);
@@ -105,7 +122,8 @@ public class WikimediaScraperFunctions
 
                 }
             }
-            if (row.select("ul span").text().contains("decreasing Sanity")) {
+            if (row.select("ul span").text().contains("decreasing Sanity"))
+            {
                 System.out.println("Sanity-:");
                 sanityBox = row.child(1);
                 Elements sanityEffects = sanityBox.getElementsByTag("li");
@@ -117,16 +135,9 @@ public class WikimediaScraperFunctions
             }
         }
     }
+
     public static void scrapeIDAbilityData(Document htmlContent)
     {
-        List<String> iconWhiteList = List.of("Wrath1.png","Wrath2.png","Wrath3.png",
-                "Lust1.png", "Lust2.png", "Lust3.png",
-                "Sloth1.png", "Sloth2.png", "Sloth3.png",
-                "Gluttony1.png", "Gluttony2.png", "Gluttony3.png",
-                "Gloom1.png", "Gloom2.png", "Gloom3.png",
-                "Pride1.png", "Pride2.png", "Pride3.png",
-                "Envy1.png", "Envy2.png", "Envy3.png");
-
         Elements largeSelector = htmlContent.select(".tabber .tabber__section [id^=Skill_1-], "
                 + ".tabber .tabber__section [id^=Skill_2-], "
                 + ".tabber .tabber__section [id^=Skill_3-], "
@@ -138,93 +149,7 @@ public class WikimediaScraperFunctions
             {
                 continue;
             }
-            // Żebym wiedział co się dzieje
-            System.out.println("\nPROCESSING:" + element.id());
-            // Zwraca pusty pojemnik, jeżeli nie istnieje
-            Elements columns = Optional.ofNullable(element.select("table tr").first())
-                    .map(row -> row.select("td"))
-                    .orElseGet(() -> {
-                        System.out.println("No td for table tr");
-                        return new Elements();
-                    });
-
-            // Z racji, że wiemy, że zawsze będziemy mieć daną kolejnośc kolumn,
-            // możemy działać po kolejności pojawienia się
-            Element leftAbilityPanel = columns.getFirst();
-
-            for (Element image : leftAbilityPanel.select("img")) {
-                String altText = image.attr("alt");
-                if (iconWhiteList.contains(altText))
-                {
-                    System.out.println("Sin affinity: " + altText.replace(".png", ""));
-                }
-            }
-            Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=\" Icon.png\"]");
-            System.out.println(skillIcon != null ? "Skill icon: "
-                    + skillIcon.attr("alt").replace(".png", "") : "No skillIcon");
-
-            Elements abilityPowers = leftAbilityPanel.select("b");
-            Element basePower = abilityPowers.get(0);
-            // w Jsoup '>' oznacza bezpośrednie dziecko
-            Element damageType = leftAbilityPanel.selectFirst("> img");
-            Element coinPower = abilityPowers.get(1);
-            System.out.println("Base power: " + basePower.text());
-            System.out.println(damageType != null ? "Damage type: "
-                    + damageType.attr("alt").replace(".png", "") : "No damageType");
-            // Wyciąć z tego plusa
-            System.out.println("Coin power: " + coinPower.text().replace("+ ", ""));
-
-            Element rightAbilityPanel = columns.get(1);
-            int coinCount = 0;
-            for (Element image : rightAbilityPanel.select("img")) {
-                if (image.attr("alt").contains("Coin")) {
-                    coinCount += 1;
-                } else {
-                    break;
-                }
-            }
-            System.out.println("Coin count: " + coinCount);
-
-            Element abilityName = rightAbilityPanel.selectFirst("div span");
-            System.out.println(abilityName != null ? "Ability name: "
-                    + abilityName.text() : "No abilityName");
-
-            Element attackWeight = rightAbilityPanel.selectFirst("font");
-            System.out.println(attackWeight != null ? "Attack weight: "
-                    + attackWeight.text().replace("Atk Weight ", "") : "No attackWeight");
-
-            // ownText wyciąga tekst, który jest zawarty w pojemniku rightAbilityPanel,
-            // ale nie w jego dzieciach
-            String offenseLevel = rightAbilityPanel.textNodes().getFirst().text();
-            System.out.println("Offense level: " + offenseLevel.replaceAll(".*([+-]\\d+).*", "$1"));
-
-            Element preAbilityEffects = rightAbilityPanel.clone();
-            // Zawsze powinno istnieć, ale chcemy ominąc wyrzucenie całego programu
-            Optional.ofNullable(preAbilityEffects.selectFirst("div span")).ifPresentOrElse(
-                    Element::remove,
-                    () -> System.out.println("No 'div span' for removal"));
-            Optional.ofNullable(preAbilityEffects.selectFirst("font")).ifPresentOrElse(
-                    Element::remove,
-                    () -> System.out.println("No 'font' for removal"));
-            // Usuwamy elementy, żeby się nie powtarzały
-            preAbilityEffects.textNodes().getFirst().remove();
-            preAbilityEffects.select("div[style*=\"padding-left\"]").remove();
-            // Będę musiał to jakoś trochę inaczej zrobić chyba
-            String[] preAbilityContent =  longTextSlasher(preAbilityEffects);
-
-            Elements abilityCoins = rightAbilityPanel.select("div[style*=\"padding-left\"]");
-            for (Element coin : abilityCoins)
-            {
-                // Szukamy obrazka o danym alt
-                Element coinImage = coin.selectFirst("img[alt^=\"CoinEffect\"]");
-                if (coinImage != null) {
-                    String coinNumber = coinImage.attr("alt");
-                    // Usuwamy wszystko, co nie jest liczbą
-                    coinNumber = coinNumber.replaceAll("\\D+", "");
-                    String effectText = coin.text();
-                    System.out.println("Coin" + coinNumber + " : " + effectText);
-                }
-            }
+            processSingleAbility(element);
         }
     }
     public static void scrapePassiveData(Document htmlContent)
@@ -299,20 +224,14 @@ public class WikimediaScraperFunctions
 
     public static void scrapeEGOAbilities(Document htmlContent)
     {
-        // corroded ego at 'mw-customcollapsible-corrosion'
-        // awakened ego at 'mw-customcollapsible-awakening'
-        // Na obu spróbować metody łapania elementu po divie o elemencie z <b> Skills <b>
-
         // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
         Elements genericRows;
 
-        // Informacje o kosztach i sin defense w 'mw-content-text'
         Element genericInformation = Optional.ofNullable(htmlContent)
                 .map(content -> content.selectFirst(".mw-body-content"))
                 .orElse(new Element("div"));
 
-        // Będe musiał trochę zmienić zasadę D.R.Y. z racji że musiałbym kompletnie zamienić
-        // jak działa .scrapeGeneralData, jakbym chciał to zrobić bardziej modularnie
+        // TODO Chyba mogę zmodyfikować scrapeGeneralData by wykorzystywało informacje z tego miejsca
         Element genericInformationInfo = Optional.ofNullable(
                 genericInformation.selectFirst("b:contains(Info)"))
                     .map(container -> container.closest("tbody"))
@@ -352,6 +271,7 @@ public class WikimediaScraperFunctions
                 genericInformation.selectFirst("b:contains(Cost (Overclock))"))
                     .map(container -> container.closest("tbody"))
                     .orElse(new Element("div"));
+
         // Usuwamy headery
         genericInformationCost.child(0).remove();
         genericInformationCost.child(2).remove();
@@ -400,8 +320,6 @@ public class WikimediaScraperFunctions
                 System.out.println();
             }
         }
-
-        // Resistances jest akurat łatwe, z racji, że kolejność jest taka sama
         Element genericInformationResistances = Optional.ofNullable(
                 genericInformation.selectFirst("b:contains(Resistances)"))
                 .map(container -> container.closest("tbody"))
@@ -422,30 +340,134 @@ public class WikimediaScraperFunctions
             }
         }
         Element awakeningInformation = Optional.ofNullable(htmlContent)
-                .map(content -> content.selectFirst(".mw-customcollapsible-awakening"))
+                .map(content -> content.selectFirst(
+                        "#mw-customcollapsible-awakening div.ABMobile[style*=float:right]"))
                 .orElse(new Element("div"));
+        processSingleAbility(awakeningInformation);
 
         Element corrosionInformation = Optional.ofNullable(htmlContent)
-                .map(content -> content.selectFirst(".mw-customcollapsible-corrosion"))
+                .map(content -> content.selectFirst(
+                        "#mw-customcollapsible-corrosion div.ABMobile[style*=float:right]"))
                 .orElse(new Element("div"));
-
-        System.out.println(awakeningInformation.text());
-
-
-
-
-        System.out.println("test");
+        processSingleAbility(corrosionInformation);
     }
 
-    private static String[] longTextSlasher(Element divPassiveContainer) {
+    private static String[] longTextSlasher(Element divPassiveContainer)
+    {
         divPassiveContainer.select("br").before("|||");
         String rawSplitPassive = divPassiveContainer.text();
         String[] splitPassive = rawSplitPassive.split("\\|\\|\\|");
-        for (String passiveLine : splitPassive) {
-            if (!passiveLine.trim().isEmpty()) {
+        for (String passiveLine : splitPassive)
+        {
+            if (!passiveLine.trim().isEmpty())
+            {
                 System.out.println(passiveLine.trim());
             }
         }
         return splitPassive;
+    }
+
+    private static void processSingleAbility(Element abilityContainer)
+    {
+        List<String> iconWhiteList = List.of("Wrath1.png","Wrath2.png","Wrath3.png",
+                "Lust1.png", "Lust2.png", "Lust3.png",
+                "Sloth1.png", "Sloth2.png", "Sloth3.png",
+                "Gluttony1.png", "Gluttony2.png", "Gluttony3.png",
+                "Gloom1.png", "Gloom2.png", "Gloom3.png",
+                "Pride1.png", "Pride2.png", "Pride3.png",
+                "Envy1.png", "Envy2.png", "Envy3.png");
+
+        // Żebym wiedział, co się dzieje
+        System.out.println("\nPROCESSING: " + (abilityContainer.id()));
+
+        // Zwraca pusty pojemnik, jeżeli nie istnieje
+        Elements columns = Optional.ofNullable(abilityContainer.select("table tr").first())
+                .map(row -> row.select("td"))
+                .orElseGet(() -> {
+                    System.out.println("No td for table tr");
+                    return new Elements();
+                });
+
+        // Z racji, że wiemy, że zawsze będziemy mieć daną kolejnośc kolumn,
+        // możemy działać po kolejności pojawienia się
+        Element leftAbilityPanel = columns.getFirst();
+
+        for (Element image : leftAbilityPanel.select("img"))
+        {
+            String altText = image.attr("alt");
+            if (iconWhiteList.contains(altText))
+            {
+                System.out.println("Sin affinity: " + altText.replace(".png", ""));
+            }
+        }
+        Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=\" Icon.png\"]");
+        scrapeImageURL(skillIcon);
+        System.out.println(skillIcon != null ? "Skill icon: "
+                + skillIcon.attr("alt").replace(".png", "") : "No skillIcon");
+
+        Elements abilityPowers = leftAbilityPanel.select("b");
+        Element basePower = abilityPowers.get(0);
+        // w Jsoup '>' oznacza bezpośrednie dziecko
+        Element damageType = leftAbilityPanel.selectFirst("> img");
+        Element coinPower = abilityPowers.get(1);
+        System.out.println("Base power: " + basePower.text());
+        System.out.println(damageType != null ? "Damage type: "
+                + damageType.attr("alt").replace(".png", "") : "No damageType");
+        // Wyciąć z tego plusa
+        System.out.println("Coin power: " + coinPower.text().replace("+ ", ""));
+
+        Element rightAbilityPanel = columns.get(1);
+        int coinCount = 0;
+        for (Element image : rightAbilityPanel.select("img"))
+        {
+            if (image.attr("alt").contains("Coin"))
+            {
+                coinCount += 1;
+            } else {
+                break;
+            }
+        }
+        System.out.println("Coin count: " + coinCount);
+
+        Element abilityName = rightAbilityPanel.selectFirst("div span");
+        System.out.println(abilityName != null ? "Ability name: "
+                + abilityName.text() : "No abilityName");
+
+        Element attackWeight = rightAbilityPanel.selectFirst("font");
+        System.out.println(attackWeight != null ? "Attack weight: "
+                + attackWeight.text().replace("Atk Weight ", "") : "No attackWeight");
+
+        // ownText wyciąga tekst, który jest zawarty w pojemniku rightAbilityPanel,
+        // ale nie w jego dzieciach
+        String offenseLevel = rightAbilityPanel.textNodes().getFirst().text();
+        System.out.println("Offense level: " + offenseLevel.replaceAll(".*([+-]\\d+).*", "$1"));
+
+        Element preAbilityEffects = rightAbilityPanel.clone();
+        // Zawsze powinno istnieć, ale chcemy ominąc wyrzucenie całego programu
+        Optional.ofNullable(preAbilityEffects.selectFirst("div span")).ifPresentOrElse(
+                Element::remove,
+                () -> System.out.println("No 'div span' for removal"));
+        Optional.ofNullable(preAbilityEffects.selectFirst("font")).ifPresentOrElse(
+                Element::remove,
+                () -> System.out.println("No 'font' for removal"));
+        // Usuwamy elementy, żeby się nie powtarzały
+        preAbilityEffects.textNodes().getFirst().remove();
+        preAbilityEffects.select("div[style*=\"padding-left\"]").remove();
+        // Będę musiał to jakoś trochę inaczej zrobić chyba
+        String[] preAbilityContent =  longTextSlasher(preAbilityEffects);
+
+        Elements abilityCoins = rightAbilityPanel.select("div[style*=\"padding-left\"]");
+        for (Element coin : abilityCoins)
+        {
+            // Szukamy obrazka o danym alt
+            Element coinImage = coin.selectFirst("img[alt^=\"CoinEffect\"]");
+            if (coinImage != null) {
+                String coinNumber = coinImage.attr("alt");
+                // Usuwamy wszystko, co nie jest liczbą
+                coinNumber = coinNumber.replaceAll("\\D+", "");
+                String effectText = coin.text();
+                System.out.println("Coin" + coinNumber + " : " + effectText);
+            }
+        }
     }
 }
