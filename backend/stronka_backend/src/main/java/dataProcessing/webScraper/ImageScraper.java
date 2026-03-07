@@ -46,8 +46,15 @@ public class ImageScraper
         String imgURL = Optional.ofNullable(imgElement)
                 .map(attribute -> attribute.attr("abs:src"))
                 .orElse("NO IMAGE URL!!!");
+        // Pobieranie obrazów w pełnej rozdzielczości
+        if (imgURL.contains("/thumb/")) {
+            imgURL = imgURL.replace("/thumb/", "/");
+            imgURL = imgURL.substring(0, imgURL.lastIndexOf("/"));
+        }
+
         String fileName = imgURL.substring(imgURL.lastIndexOf('/') + 1);
-        // Znaki po, jak i ? nie są konieczne, jak i uniemożliwiają pobieranie
+        // Znaki po jak i samo ? uniemożliwiają pobieranie
+        fileName = fileName.replace("\\d+\\-", "");
         if (fileName.contains("?"))
         {
             fileName = fileName.substring(0, fileName.indexOf("?"));
