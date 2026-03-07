@@ -22,6 +22,7 @@ public class DataParserFunctions
             // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
             // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
             List<String> urls = List.of(
+                    //    ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
                     ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
             // List<String> url = List.of("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang");
 
@@ -117,17 +118,20 @@ public class DataParserFunctions
                 {
                     // Tylko ID mają sanity
                     WikimediaScraperFunctions.scrapeSanityData(htmlContent);
-                    // E.G.O przechowują umiejętności w inny sposób
+                    // E.G.O przechowują umiejętności i pasywki w inny sposób
                     WikimediaScraperFunctions.scrapeIDAbilityData(htmlContent);
+                }
+                else if(category.text().equals("E.G.O"))
+                {
+                    WikimediaScraperFunctions.scrapeEGOAbilities(htmlContent);
                 }
                 WikimediaScraperFunctions.scrapePassiveData(htmlContent);
             }
-            WikimediaScraperFunctions.scrapeEGOAbilities(htmlContent);
             if(category.text().equals("Status Effect Pages"))
             {
                 System.out.println("STATUS EFFECT");
-                break;
             }
+            break;
         }
         // Sprawdzamy, która ze pod-stronek to jest
     }

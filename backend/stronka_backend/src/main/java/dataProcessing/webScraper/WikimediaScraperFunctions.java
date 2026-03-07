@@ -231,13 +231,14 @@ public class WikimediaScraperFunctions
     {
         // Ciekawy styl jest z tym b:contains...
         Elements prePassiveHeaders = htmlContent.select("b:contains(Passive), "
-                + "b:contains(Combat Passives), b:contains(Support Passive)");
+                + "b:contains(Combat Passives), b:contains(Support Passive), b:contains(Passives)");
 
+        String passiveCategory = "";
         for (Element prePassiveHeader : prePassiveHeaders)
         {
+            String previousPassiveCategory = passiveCategory;
             String headerText = prePassiveHeader.text().trim();
-            String passiveCategory;
-            if (headerText.contains("Combat Passive") || headerText.equals("Passive"))
+            if (headerText.contains("Combat Passive") || headerText.equals("Passives") || headerText.equals("Passive"))
             {
                 passiveCategory = "COMBAT_PASSIVE";
             }
@@ -250,24 +251,38 @@ public class WikimediaScraperFunctions
             {
                 continue;
             }
+            // Z racji struktury strony, mamy kilka razy kontenery o tej samej zawartości, z racji,
+            // że nie chcę wypisywac ich wszystkich, robimy break, z jakiejś racji dochodzi do tego tylko dla E.G.O,
+            // więc w poniższy warunek jest odpowiedni
+            if(previousPassiveCategory.equals(passiveCategory))
+            {
+                break;
+            }
             System.out.println(passiveCategory);
-            Element passiveContainer = Optional.ofNullable(prePassiveHeader.parent())
-                    .map(Node::nextElementSibling)
-                    .orElse(new Element("div"));
-            Elements divPassiveContainers = Optional.of(passiveContainer)
-                    .map(container -> container.select("div[style*=padding:10px]"))
-                    .orElse(new Elements());
+            Element currentParent = prePassiveHeader.parent();
+            // Pozwala nam an operowanie na stronach E.G.O jak i ID
+            Element passiveContainer = Optional.ofNullable(currentParent)
+                    .map(Element::nextElementSibling)
+                    // Jeżeli nie możemy wyłapać następcę dla currentParent,
+                    // przechodzimy do jego parenta i szukamy jego następcy
+                    .orElseGet(() -> Optional.ofNullable(currentParent)
+                            .map(Element::parent)
+                            .map(Element::nextElementSibling)
+                            // W innym wypadku dajemy pustego diva, żeby program się nie wyrzucił,
+                            .orElse(new Element("div")));
+            Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
             for(Element divPassiveContainer : divPassiveContainers)
             {
                 Element costSin = divPassiveContainer.selectFirst("img[alt^=LcbSin]");
                 Element costType = divPassiveContainer.selectFirst("span[style*=Mikodacs]");
                 if(costType != null && costSin != null)
                 {
-                    System.out.println("Cost: " + costSin.attr("alt").replace(".png", "") + " " + costType.text());
+                    System.out.println("Cost: " + costSin.attr("alt").replace(".png", "")
+                            + " " + costType.text());
                     // Irytujący krzyżyk
                     Optional.ofNullable(costSin.nextElementSibling())
-                            .ifPresentOrElse(Node::remove,
-                                    () -> System.out.println("Cannot remove"));
+                            //TODO: Czary-mary, później doczytać jak to dokładnie działa
+                            .ifPresentOrElse(Node::remove, () -> System.out.println("Cannot remove"));
                     costSin.remove();
                     costType.remove();
                 }
@@ -288,11 +303,137 @@ public class WikimediaScraperFunctions
         // awakened ego at 'mw-customcollapsible-awakening'
         // Na obu spróbować metody łapania elementu po divie o elemencie z <b> Skills <b>
 
-        // Informacje o kosztach i sin defense w 'mw-content-text'
-        // Kompletnie inna struktura niż w id
-        // Podobnie jak wcześniej korzystaj z szukania po elemencie który ma tekst z X
+        // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
+        Elements genericRows;
 
-        // Pasywki też są inaczej???????????
+        // Informacje o kosztach i sin defense w 'mw-content-text'
+        Element genericInformation = Optional.ofNullable(htmlContent)
+                .map(content -> content.selectFirst(".mw-body-content"))
+                .orElse(new Element("div"));
+
+        // Będe musiał trochę zmienić zasadę D.R.Y. z racji że musiałbym kompletnie zamienić
+        // jak działa .scrapeGeneralData, jakbym chciał to zrobić bardziej modularnie
+        Element genericInformationInfo = Optional.ofNullable(
+                genericInformation.selectFirst("b:contains(Info)"))
+                    .map(container -> container.closest("tbody"))
+                    .orElse(new Element("div"));
+        // Jak mamy cały kontener, to usuwamy pierwsze dziecko, z napisem "Info"
+        // Po czym przechodzimy po pozostałych kontenerach
+        genericInformationInfo.child(0).remove();
+        genericRows = genericInformationInfo.getElementsByTag("tr");
+        for(Element row : genericRows)
+        {
+            Elements specifiedRow = row.select("td");
+            if (!row.text().isEmpty())
+            {
+                if(specifiedRow.selectFirst("td:contains(Risk Level)") != null)
+                {
+                    System.out.println("Risk Level: " + Optional.ofNullable(
+                            specifiedRow.get(1).selectFirst("img"))
+                                .map(img -> img.attr("alt"))
+                                .orElse("Image not found"));
+                    System.out.println("Season: " + specifiedRow.get(3).text());
+                }
+                if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
+                {
+                    System.out.println("Affinity: " + Optional.ofNullable(
+                            specifiedRow.get(1).selectFirst("img"))
+                                .map(img -> img.attr("alt"))
+                                .orElse("Image not found"));
+                    System.out.println("Release: " + specifiedRow.get(3).text());
+                }
+                if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
+                {
+                    System.out.println("Abnormality: " + specifiedRow.get(1).text());
+                }
+            }
+        }
+        Element genericInformationCost = Optional.ofNullable(
+                genericInformation.selectFirst("b:contains(Cost (Overclock))"))
+                    .map(container -> container.closest("tbody"))
+                    .orElse(new Element("div"));
+        // Usuwamy headery
+        genericInformationCost.child(0).remove();
+        genericInformationCost.child(2).remove();
+        genericRows = genericInformationCost.getElementsByTag("tr");
+        for(Element row : genericRows)
+        {
+            Elements specifiedRow = row.select("td");
+
+            if(specifiedRow.size() < 2)
+            {
+                continue;
+            }
+            Element headerRow = specifiedRow.get(0);
+            Element dataRow = specifiedRow.get(1);
+            if(headerRow.text().contains("Sanity"))
+            {
+                System.out.println("Sanity cost: " + dataRow.text());
+            }
+            else if(headerRow.text().contains("E.G.O Resources"))
+            {
+                System.out.println("E.G.O Resources: ");
+
+                for(Node dataNode : dataRow.childNodes())
+                {
+                    if(dataNode instanceof Element nodeElement)
+                    {
+                        if(nodeElement.tagName().equals("img"))
+                        {
+                            String sinType = nodeElement.attr("alt").replace(".png", "");
+                            System.out.print("[" + sinType + "]");
+                        }
+                        else if(nodeElement.tagName().equals("span"))
+                        {
+                            System.out.print(nodeElement.text().trim() + " ");
+                        }
+                    }
+                    else if(dataNode instanceof org.jsoup.nodes.TextNode)
+                    {
+                        String sinText = ((org.jsoup.nodes.TextNode) dataNode).text().trim();
+                        if(!sinText.isEmpty())
+                        {
+                            System.out.print(sinText + " ");
+                        }
+                    }
+                }
+                System.out.println();
+            }
+        }
+
+        // Resistances jest akurat łatwe, z racji, że kolejność jest taka sama
+        Element genericInformationResistances = Optional.ofNullable(
+                genericInformation.selectFirst("b:contains(Resistances)"))
+                .map(container -> container.closest("tbody"))
+                .orElse(new Element("div"));
+        genericInformationResistances.child(0).remove();
+        genericRows = genericInformationResistances.getElementsByTag("tr");
+        for(Element row : genericRows)
+        {
+            String rawResistances = row.text();
+            String[] splitResistances = rawResistances.split(" ");
+            System.out.print("Resistances: ");
+            for(String word : splitResistances)
+            {
+                if(word.startsWith("["))
+                {
+                    System.out.print(word + " ");
+                }
+            }
+        }
+        Element awakeningInformation = Optional.ofNullable(htmlContent)
+                .map(content -> content.selectFirst(".mw-customcollapsible-awakening"))
+                .orElse(new Element("div"));
+
+        Element corrosionInformation = Optional.ofNullable(htmlContent)
+                .map(content -> content.selectFirst(".mw-customcollapsible-corrosion"))
+                .orElse(new Element("div"));
+
+        System.out.println(awakeningInformation.text());
+
+
+
+
         System.out.println("test");
     }
 
