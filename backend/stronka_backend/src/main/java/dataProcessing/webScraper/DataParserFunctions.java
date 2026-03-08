@@ -102,7 +102,8 @@ public class DataParserFunctions
         {
             if(category.text().equals("E.G.O") || category.text().equals("Identities"))
             {
-                WikimediaScraperFunctions.scrapeGeneralData(htmlContent);
+                RecordBuilders.IDDataBuilder builder = new RecordBuilders.IDDataBuilder();
+                WikimediaScraperFunctions.scrapeGeneralIDData(htmlContent, builder);
 
                 if (category.text().equals("Identities"))
                 {
@@ -139,29 +140,28 @@ public class DataParserFunctions
                 "Referer", "https://limbuscompany.wiki.gg/",
                 // Automatycznie przechodzi z http na https, jeżeli może
                 "Upgrade-Insecure-Requests", "1");
-            for (int currentAttemptCount = 0; currentAttemptCount < retryCount; currentAttemptCount++)
+        for (int currentAttemptCount = 0; currentAttemptCount < retryCount; currentAttemptCount++)
+        {
+            try
             {
+                System.out.println("Attempt " + (currentAttemptCount + 1) + " to scrape " + url);
+                Document document = Jsoup.connect(url)
+                        .timeout(5000)
+                        .headers(jsoupHeaders)
+                        .get();
+                System.out.println("Scraped " + url);
+                return document;
+            }
+            catch (IOException e)
+            {
+                System.err.println("Attempt " + (currentAttemptCount + 1) + " failed at " + url + ": " + e.getMessage());
                 try
                 {
-                    System.out.println("Attempt " + (currentAttemptCount + 1) + " to scrape " + url);
-                    Document document = Jsoup.connect(url)
-                            .timeout(5000)
-                            .headers(jsoupHeaders)
-                            .get();
-                    System.out.println("Scraped " + url);
-                    return document;
-
+                    Thread.sleep(5000);
                 }
-                catch (IOException e)
-                {
-                    System.err.println("Attempt " + (currentAttemptCount + 1) + " failed at " + url + ": " + e.getMessage());
-                    try
-                    {
-                        Thread.sleep(5000);
-                    }
-                    catch (InterruptedException _) {}
-                }
+                catch (InterruptedException _) {}
             }
+        }
         return null;
     }
 }

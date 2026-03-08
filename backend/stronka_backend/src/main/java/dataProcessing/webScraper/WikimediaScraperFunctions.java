@@ -3,10 +3,10 @@ package dataProcessing.webScraper;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static dataProcessing.webScraper.ImageScraper.scrapeImageURL;
 
@@ -16,14 +16,19 @@ public class WikimediaScraperFunctions
     // Nie korzystać z tego za często, później dorobię funkcję, która ręcznie pobierze takie obrazki jak threat level,
     // jak i generic ikonki
 
-    public static void scrapeGeneralData(Document htmlContent)
+    public static RecordBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
     {
+        String[] idResistances = {"Slash", "Pierce", "Blunt"};
+
         Element smallSelector = htmlContent.selectFirst(".mw-page-title-main");
         String unitTitle = (smallSelector != null) ? smallSelector.text() : "No title";
+        builder.setName(unitTitle);
         System.out.println(unitTitle);
 
         smallSelector = htmlContent.selectFirst(".mw-collapsible-content a img");
-        scrapeImageURL(smallSelector);
+
+        // Pobieramy obrazek i od razu ustawiamy nazwe
+        builder.setPortraitFile(scrapeImageURL(smallSelector));
         Elements largeSelector = htmlContent.select("#General_Info-0 table tr");
         for (Element row : largeSelector)
         {
@@ -39,6 +44,7 @@ public class WikimediaScraperFunctions
                 System.out.println("Stagger Threshholds: ");
                 for(Element staggerThreshold : staggerThresholds)
                 {
+                    builder.addStaggerThreshold(staggerThreshold.text());
                     System.out.println(staggerThreshold.text());
                 }
             }
@@ -51,6 +57,7 @@ public class WikimediaScraperFunctions
                 System.out.println("Traits: ");
                 for(Element unitTrait : unitTraits)
                 {
+                    builder.addTrait(unitTrait.text());
                     System.out.println(unitTrait.text());
                 }
             }
@@ -58,10 +65,7 @@ public class WikimediaScraperFunctions
             if (specifiedRowSize == 3 && !specifiedRow.getFirst().text().isEmpty())
             {
                 // Tu jest git
-                System.out.println("Resistances: ");
-                System.out.println(specifiedRow.getFirst().text());
-                System.out.println(specifiedRow.get(1).text());
-                System.out.println(specifiedRow.get(2).text());
+                parseResistances(specifiedRow.text(), idResistances, builder);
             }
 
             if (specifiedRowSize == 4)
@@ -77,67 +81,79 @@ public class WikimediaScraperFunctions
                 }
                 if(rowType.equals("RarityWorld"))
                 {
-                    Element rarityIMG = specifiedRow.get(1).selectFirst("img");
-                    System.out.println("Rarity : " + Optional.ofNullable(rarityIMG)
+                    String rarityIMG = Optional.ofNullable(specifiedRow.get(1).selectFirst("img"))
                             .map(img -> img.attr("alt"))
-                            .orElse("Image not found"));
+                            .orElse("IMAGE NOT FOUND");
+                    builder.setRarity(Tiers.Rarity.rarityParser(rarityIMG));
+                    System.out.println("Rarity : " + rarityIMG);
 
-                    Element worldIMG = specifiedRow.get(3).selectFirst("img");
-                    System.out.println("World : " + Optional.ofNullable(worldIMG)
+                    Element worldIMGURL = specifiedRow.get(3).selectFirst("img");
+                    String worldIMG = Optional.ofNullable(worldIMGURL)
                             .map(img -> img.attr("alt"))
-                            .orElse("Image not found"));
-                    scrapeImageURL(worldIMG);
+                            .orElse("IMAGE NOT FOUND");
+                    builder.setWorldFile(worldIMG);
+                    builder.setWorld(worldIMG.replace("Icon.png", ""));
+                    System.out.println("World : " + worldIMG);
+                    scrapeImageURL(worldIMGURL);
                 }
                 if(rowType.equals("SeasonRelease"))
                 {
+                    builder.setSeason(specifiedRow.get(1).text());
                     System.out.println("Season : " + specifiedRow.get(1).text());
+                    builder.setReleaseDate(specifiedRow.get(3).text());
                     System.out.println("Release : " + specifiedRow.get(3).text());
                 }
             }
             // Zawsze życie + speed + def. level
             if (specifiedRowSize == 6)
             {
+                builder.setHealth(Integer.parseInt(specifiedRow.get(1).text().trim()));
                 System.out.println("Health: " + specifiedRow.get(1).text());
+                builder.setSpeed(specifiedRow.get(3).text());
                 System.out.println("Speed: " + specifiedRow.get(3).text());
+                builder.setDefenseLevel(Integer.parseInt(specifiedRow.get(5).text().trim()));
                 System.out.println("Defense level: " + specifiedRow.get(5).text());
             }
         }
+        return builder;
     }
-    public static void scrapeSanityData(Document htmlContent)
+
+    public static RecordBuilders.IDDataBuilder scrapeSanityData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
     {
         Elements largeSelector = htmlContent.select("#Sanity-0 table tr td div");
         for (Element row : largeSelector)
         {
-            Element sanityBox;
+            Element sanityBox = row.child(1);
+            Elements sanityEffects = sanityBox.getElementsByTag("li");
             // Muszę teraz jakoś przejść przez wszystkie linijki i je połączyć sensownie
             if (row.select("ul span").text().contains("increasing Sanity"))
             {
                 System.out.println("Sanity+:");
-                // Może jakiegoś splita mogę zrobić przed słowem 'Increase'
-                sanityBox = row.child(1);
-                Elements sanityEffects = sanityBox.getElementsByTag("li");
                 for(Element sanityEffect : sanityEffects)
                 {
+                    builder.addPositiveSanityEffect(sanityEffect.text().trim());
                     System.out.println(sanityEffect.text());
 
                 }
             }
-            if (row.select("ul span").text().contains("decreasing Sanity"))
+            else if (row.select("ul span").text().contains("decreasing Sanity"))
             {
                 System.out.println("Sanity-:");
-                sanityBox = row.child(1);
-                Elements sanityEffects = sanityBox.getElementsByTag("li");
                 for(Element sanityEffect : sanityEffects)
                 {
+                    builder.addNegativeSanityEffect(sanityEffect.text().trim());
                     System.out.println(sanityEffect.text());
 
                 }
             }
         }
+        return builder;
     }
 
-    public static void scrapeIDAbilityData(Document htmlContent)
+    public static List<FormatedScraperData.Ability> scrapeIDAbilityData(Document htmlContent)
     {
+        List<FormatedScraperData.Ability> abilities = new ArrayList<>();
+
         Elements largeSelector = htmlContent.select(".tabber .tabber__section [id^=Skill_1-], "
                 + ".tabber .tabber__section [id^=Skill_2-], "
                 + ".tabber .tabber__section [id^=Skill_3-], "
@@ -151,8 +167,9 @@ public class WikimediaScraperFunctions
             }
             processSingleAbility(element);
         }
+        return abilities;
     }
-    public static void scrapePassiveData(Document htmlContent)
+    public static void scrapePassiveData(Document htmlContent, RecordBuilders.BaseEquippableBuilder<?> builder)
     {
         // Ciekawy styl jest z tym b:contains...
         Elements prePassiveHeaders = htmlContent.select("b:contains(Passive), "
@@ -198,35 +215,37 @@ public class WikimediaScraperFunctions
             Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
             for(Element divPassiveContainer : divPassiveContainers)
             {
-                Element costSin = divPassiveContainer.selectFirst("img[alt^=LcbSin]");
-                Element costType = divPassiveContainer.selectFirst("span[style*=Mikodacs]");
-                if(costType != null && costSin != null)
-                {
-                    System.out.println("Cost: " + costSin.attr("alt").replace(".png", "")
-                            + " " + costType.text());
-                    // Irytujący krzyżyk
-                    Optional.ofNullable(costSin.nextElementSibling())
-                            //TODO: Czary-mary, później doczytać jak to dokładnie działa
-                            .ifPresentOrElse(Node::remove, () -> System.out.println("Cannot remove"));
-                    costSin.remove();
-                    costType.remove();
-                }
-                Element passiveTitle = divPassiveContainer.selectFirst("div[style*=fit-content]");
-                if(passiveTitle != null)
-                {
-                    System.out.println("Passive title: " + passiveTitle.text().trim());
-                    passiveTitle.remove();
-                }
-                String[] passiveContent = longTextSlasher(divPassiveContainer);
+                // TODO napisać tę funkcję od nowa
+//                Element costSin = divPassiveContainer.selectFirst("img[alt^=LcbSin]");
+//                Element costType = divPassiveContainer.selectFirst("span[style*=Mikodacs]");
+//                if(costType != null && costSin != null)
+//                {
+//                    System.out.println("Cost: " + costSin.attr("alt").replace(".png", "")
+//                            + " " + costType.text());
+//                    // Irytujący krzyżyk
+//                    Optional.ofNullable(costSin.nextElementSibling())
+//                            //TODO: Czary-mary, później doczytać jak to dokładnie działa
+//                            .ifPresentOrElse(Node::remove, () -> System.out.println("Cannot remove"));
+//                    costSin.remove();
+//                    costType.remove();
+//                }
+//                Element passiveTitle = divPassiveContainer.selectFirst("div[style*=fit-content]");
+//                if(passiveTitle != null)
+//                {
+//                    System.out.println("Passive title: " + passiveTitle.text().trim());
+//                    passiveTitle.remove();
+//                }
+//                List<String> passiveContent = longTextSlasher(divPassiveContainer);
             }
         }
     }
 
-    public static void scrapeEGOAbilities(Document htmlContent)
+    // TODO Wypełnić buildera
+    public static void scrapeEGOAbilities(Document htmlContent, RecordBuilders.EGODataBuilder builder)
     {
         // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
         Elements genericRows;
-
+        String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
         Element genericInformation = Optional.ofNullable(htmlContent)
                 .map(content -> content.selectFirst(".mw-body-content"))
                 .orElse(new Element("div"));
@@ -247,10 +266,12 @@ public class WikimediaScraperFunctions
             {
                 if(specifiedRow.selectFirst("td:contains(Risk Level)") != null)
                 {
-                    System.out.println("Risk Level: " + Optional.ofNullable(
-                            specifiedRow.get(1).selectFirst("img"))
-                                .map(img -> img.attr("alt"))
-                                .orElse("Image not found"));
+                    String riskLevel = Optional.ofNullable(
+                                    specifiedRow.get(1).selectFirst("img"))
+                            .map(img -> img.attr("alt"))
+                            .orElse("Image not found");
+                    builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
+                    System.out.println("Risk Level: " + riskLevel);
                     System.out.println("Season: " + specifiedRow.get(3).text());
                 }
                 if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
@@ -308,9 +329,9 @@ public class WikimediaScraperFunctions
                             System.out.print(nodeElement.text().trim() + " ");
                         }
                     }
-                    else if(dataNode instanceof org.jsoup.nodes.TextNode)
+                    else if(dataNode instanceof TextNode)
                     {
-                        String sinText = ((org.jsoup.nodes.TextNode) dataNode).text().trim();
+                        String sinText = ((TextNode) dataNode).text().trim();
                         if(!sinText.isEmpty())
                         {
                             System.out.print(sinText + " ");
@@ -326,18 +347,10 @@ public class WikimediaScraperFunctions
                 .orElse(new Element("div"));
         genericInformationResistances.child(0).remove();
         genericRows = genericInformationResistances.getElementsByTag("tr");
+
         for(Element row : genericRows)
         {
-            String rawResistances = row.text();
-            String[] splitResistances = rawResistances.split(" ");
-            System.out.print("Resistances: ");
-            for(String word : splitResistances)
-            {
-                if(word.startsWith("["))
-                {
-                    System.out.print(word + " ");
-                }
-            }
+            parseResistances(row.text(), egoResistances, new RecordBuilders.EGODataBuilder());
         }
         Element awakeningInformation = Optional.ofNullable(htmlContent)
                 .map(content -> content.selectFirst(
@@ -352,11 +365,11 @@ public class WikimediaScraperFunctions
         processSingleAbility(corrosionInformation);
     }
 
-    private static String[] longTextSlasher(Element divPassiveContainer)
+    private static List<String> longTextSlasher(Element divPassiveContainer)
     {
         divPassiveContainer.select("br").before("|||");
         String rawSplitPassive = divPassiveContainer.text();
-        String[] splitPassive = rawSplitPassive.split("\\|\\|\\|");
+        List<String> splitPassive = Arrays.asList(rawSplitPassive.split("\\|\\|\\|"));
         for (String passiveLine : splitPassive)
         {
             if (!passiveLine.trim().isEmpty())
@@ -367,8 +380,35 @@ public class WikimediaScraperFunctions
         return splitPassive;
     }
 
-    private static void processSingleAbility(Element abilityContainer)
+    private static void parseResistances(String text, String[] resistanceNames, RecordBuilders.BaseEquippableBuilder<?> builder)
     {
+        String[] resistances = text.split(" ");
+        int index = 0;
+        System.out.print("Resistances: ");
+        for (String resistance : resistances)
+        {
+            if (resistance.startsWith("["))
+            {
+                // Czyścimy tekst
+                String cleanNumber = resistance.replaceAll("[^\\d.]", "");
+                if (!cleanNumber.isEmpty() && index < resistanceNames.length)
+                {
+                    // Zamieniamy na double
+                    double multiplier = Double.parseDouble(cleanNumber);
+                    // Dodajemy do buildera korzystając z nazwy z tablicy
+                    builder.addResistance(resistanceNames[index], multiplier);
+                    System.out.print(resistance + " ");
+                    index++;
+                }
+            }
+        }
+        System.out.println();
+    }
+
+    private static FormatedScraperData.Ability processSingleAbility(Element abilityContainer)
+    {
+        RecordBuilders.AbilityDataBuilder builder = new RecordBuilders.AbilityDataBuilder();
+
         List<String> iconWhiteList = List.of("Wrath1.png","Wrath2.png","Wrath3.png",
                 "Lust1.png", "Lust2.png", "Lust3.png",
                 "Sloth1.png", "Sloth2.png", "Sloth3.png",
@@ -378,7 +418,8 @@ public class WikimediaScraperFunctions
                 "Envy1.png", "Envy2.png", "Envy3.png");
 
         // Żebym wiedział, co się dzieje
-        System.out.println("\nPROCESSING: " + (abilityContainer.id()));
+        String skillSlot = abilityContainer.id();
+        System.out.println("\nPROCESSING: " + skillSlot);
 
         // Zwraca pusty pojemnik, jeżeli nie istnieje
         Elements columns = Optional.ofNullable(abilityContainer.select("table tr").first())
@@ -392,29 +433,36 @@ public class WikimediaScraperFunctions
         // możemy działać po kolejności pojawienia się
         Element leftAbilityPanel = columns.getFirst();
 
+        // W razie że nic nie dostaniemy, lepsze coś niż null
+        builder.setSinAffinity("NO SIN AFFINITY FOUND");
         for (Element image : leftAbilityPanel.select("img"))
         {
             String altText = image.attr("alt");
             if (iconWhiteList.contains(altText))
             {
+                builder.setSinAffinity(altText);
                 System.out.println("Sin affinity: " + altText.replace(".png", ""));
             }
         }
         Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=\" Icon.png\"]");
         scrapeImageURL(skillIcon);
-        System.out.println(skillIcon != null ? "Skill icon: "
-                + skillIcon.attr("alt").replace(".png", "") : "No skillIcon");
+        String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
+        builder.setSkillIconFile(skillIconFile);
+        System.out.println(skillIconFile.replace(".png", ""));
 
         Elements abilityPowers = leftAbilityPanel.select("b");
-        Element basePower = abilityPowers.get(0);
+        Element basePowerElement = abilityPowers.get(0);
         // w Jsoup '>' oznacza bezpośrednie dziecko
-        Element damageType = leftAbilityPanel.selectFirst("> img");
-        Element coinPower = abilityPowers.get(1);
-        System.out.println("Base power: " + basePower.text());
-        System.out.println(damageType != null ? "Damage type: "
-                + damageType.attr("alt").replace(".png", "") : "No damageType");
-        // Wyciąć z tego plusa
-        System.out.println("Coin power: " + coinPower.text().replace("+ ", ""));
+        Element damageTypeElement = leftAbilityPanel.selectFirst("> img");
+        Element coinPowerElement = abilityPowers.get(1);
+
+        String damageType = damageTypeElement != null ? damageTypeElement.attr("alt") : "NO DAMAGE TYPE ICON FOUND";
+        builder.setBasePower(Integer.parseInt(basePowerElement.text()));
+        System.out.println("Base power: " + basePowerElement.text());
+        builder.setDamageType(damageType);
+        System.out.println("Damage type: " + damageType.replace(".png", ""));
+        builder.setCoinPower(coinPowerElement.text());
+        System.out.println("Coin power: " + coinPowerElement.text());
 
         Element rightAbilityPanel = columns.get(1);
         int coinCount = 0;
@@ -427,20 +475,26 @@ public class WikimediaScraperFunctions
                 break;
             }
         }
+        builder.setCoinCount(coinCount);
         System.out.println("Coin count: " + coinCount);
 
-        Element abilityName = rightAbilityPanel.selectFirst("div span");
-        System.out.println(abilityName != null ? "Ability name: "
-                + abilityName.text() : "No abilityName");
+        Element abilityNameElement = rightAbilityPanel.selectFirst("div span");
+        String abilityName = abilityNameElement != null ? abilityNameElement.text() : "NO ABILITY NAME";
+        builder.setAbilityName(abilityName);
+        System.out.println("Ability name: " + abilityName);
 
-        Element attackWeight = rightAbilityPanel.selectFirst("font");
-        System.out.println(attackWeight != null ? "Attack weight: "
-                + attackWeight.text().replace("Atk Weight ", "") : "No attackWeight");
+        Element attackWeightElement = rightAbilityPanel.selectFirst("font");
+        String attackWeight = attackWeightElement != null ?
+                attackWeightElement.text().replace("Atk Weight ", "") : "NO ATTACK WEIGHT";
+        builder.setAttackWeight(attackWeight);
+        System.out.println("Attack weight: "  + attackWeight);
 
         // ownText wyciąga tekst, który jest zawarty w pojemniku rightAbilityPanel,
         // ale nie w jego dzieciach
-        String offenseLevel = rightAbilityPanel.textNodes().getFirst().text();
-        System.out.println("Offense level: " + offenseLevel.replaceAll(".*([+-]\\d+).*", "$1"));
+        // KATASTROFALNA kombinacja metody po metodzie
+        String offenseLevel = rightAbilityPanel.textNodes().getFirst().text().replaceAll(".*([+-]\\d+).*", "$1");
+        builder.setOffenseLevel(offenseLevel);
+        System.out.println("Offense level: " + offenseLevel);
 
         Element preAbilityEffects = rightAbilityPanel.clone();
         // Zawsze powinno istnieć, ale chcemy ominąc wyrzucenie całego programu
@@ -454,7 +508,7 @@ public class WikimediaScraperFunctions
         preAbilityEffects.textNodes().getFirst().remove();
         preAbilityEffects.select("div[style*=\"padding-left\"]").remove();
         // Będę musiał to jakoś trochę inaczej zrobić chyba
-        String[] preAbilityContent =  longTextSlasher(preAbilityEffects);
+        builder.setBaseEffects(longTextSlasher(preAbilityEffects));
 
         Elements abilityCoins = rightAbilityPanel.select("div[style*=\"padding-left\"]");
         for (Element coin : abilityCoins)
@@ -466,8 +520,11 @@ public class WikimediaScraperFunctions
                 // Usuwamy wszystko, co nie jest liczbą
                 coinNumber = coinNumber.replaceAll("\\D+", "");
                 String effectText = coin.text();
+                builder.addCoinEffect(coinNumber, effectText);
                 System.out.println("Coin" + coinNumber + " : " + effectText);
             }
+
         }
+        return builder.buildAbilityData();
     }
 }

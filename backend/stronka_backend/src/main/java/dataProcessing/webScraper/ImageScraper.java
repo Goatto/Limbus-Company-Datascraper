@@ -36,7 +36,7 @@ public class ImageScraper
     private static final String storagePath = "data/images";
     private static final HttpClient httpClient = HttpClient.newHttpClient();
 
-    public static void scrapeImageURL(Element imgElement)
+    public static String scrapeImageURL(Element imgElement)
     {
         if(imgElement == null)
         {
@@ -62,13 +62,13 @@ public class ImageScraper
 
         if(checkedFiles.contains(fileName))
         {
-            return;
+            return null;
         }
         File downloadedFile = new File(storagePath + fileName);
         if(downloadedFile.exists())
         {
             checkedFiles.add(fileName);
-            return;
+            return null;
         }
         // add zwraca true, tylko jeśli doszło do dodania nowego elementu
         if(!imgURL.isEmpty() && checkedFiles.add(imgURL))
@@ -76,6 +76,7 @@ public class ImageScraper
             System.out.println("Registered new image: " + imgURL);
             downloadScrapedImageURL(imgURL, fileName);
         }
+        return fileName;
     }
 
     // TODO Jeżeli mam być szczery to do końca nie wiem jak wszystko tu działa, zwyklę sprawdziłem na internecie jak się to robi
