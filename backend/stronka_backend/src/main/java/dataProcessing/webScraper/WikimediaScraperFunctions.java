@@ -13,8 +13,8 @@ import static dataProcessing.webScraper.ImageScraper.scrapeImageURL;
 public class WikimediaScraperFunctions
 {
 
-    // Nie korzystać z tego za często, później dorobię funkcję, która ręcznie pobierze takie obrazki jak threat level,
-    // jak i generic ikonki
+    // TODO stworzyć funkcję która z n obranych stron pobiera generic ikonki
+    // TODO rozbić tą funkcję na mniejsze fragmenty, za dużo tu się dzieje i jest to mało czytelne
 
     public static RecordBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
     {
@@ -120,13 +120,14 @@ public class WikimediaScraperFunctions
 
     public static RecordBuilders.IDDataBuilder scrapeSanityData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
     {
-        Elements largeSelector = htmlContent.select("#Sanity-0 table tr td div");
-        for (Element row : largeSelector)
+        Elements sanitySelector = htmlContent.select("#Sanity-0 table tr td div");
+        for (Element sanitySection : sanitySelector)
         {
-            Element sanityBox = row.child(1);
-            Elements sanityEffects = sanityBox.getElementsByTag("li");
+            String headerText = sanitySection.select("ul span").text();
+            Elements sanityEffects = sanitySection.select("ul li");
             // Muszę teraz jakoś przejść przez wszystkie linijki i je połączyć sensownie
-            if (row.select("ul span").text().contains("increasing Sanity"))
+            // TODO tutaj też mógłbym teoretycznie ładnie to rozłożyć na pomniejsze funkcje
+            if (headerText.contains("increasing Sanity"))
             {
                 System.out.println("Sanity+:");
                 for(Element sanityEffect : sanityEffects)
@@ -136,7 +137,7 @@ public class WikimediaScraperFunctions
 
                 }
             }
-            else if (row.select("ul span").text().contains("decreasing Sanity"))
+            else if (headerText.contains("decreasing Sanity"))
             {
                 System.out.println("Sanity-:");
                 for(Element sanityEffect : sanityEffects)
@@ -215,7 +216,7 @@ public class WikimediaScraperFunctions
             Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
             for(Element divPassiveContainer : divPassiveContainers)
             {
-                // TODO napisać tę funkcję od nowa
+                // TODO napisać tę funkcję od nowa, najlepiej rozbić do osobnej funkcji
 //                Element costSin = divPassiveContainer.selectFirst("img[alt^=LcbSin]");
 //                Element costType = divPassiveContainer.selectFirst("span[style*=Mikodacs]");
 //                if(costType != null && costSin != null)
@@ -241,6 +242,7 @@ public class WikimediaScraperFunctions
     }
 
     // TODO Wypełnić buildera
+    // TODO to NAPEWNO rozbić na mniejsze funkcje, absolutnie mało czytelne i chaotycznie napisane
     public static void scrapeEGOAbilities(Document htmlContent, RecordBuilders.EGODataBuilder builder)
     {
         // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
@@ -405,6 +407,7 @@ public class WikimediaScraperFunctions
         System.out.println();
     }
 
+    // TODO też mógłbym chyba teoretycznie rozbić to na mniejsze funkcje, później o tym pomyśl
     private static FormatedScraperData.Ability processSingleAbility(Element abilityContainer)
     {
         RecordBuilders.AbilityDataBuilder builder = new RecordBuilders.AbilityDataBuilder();

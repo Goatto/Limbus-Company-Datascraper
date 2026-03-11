@@ -108,15 +108,16 @@ public class DataParserFunctions
                 if (category.text().equals("Identities"))
                 {
                     // Tylko ID mają sanity
-                    WikimediaScraperFunctions.scrapeSanityData(htmlContent);
+                    // TODO Buildery tutaj są temp, tak by program się nie wykrzaczał
+                    WikimediaScraperFunctions.scrapeSanityData(htmlContent, new RecordBuilders.IDDataBuilder());
                     // E.G.O przechowują umiejętności i pasywki w inny sposób
                     WikimediaScraperFunctions.scrapeIDAbilityData(htmlContent);
                 }
                 else if(category.text().equals("E.G.O"))
                 {
-                    WikimediaScraperFunctions.scrapeEGOAbilities(htmlContent);
+                    WikimediaScraperFunctions.scrapeEGOAbilities(htmlContent, new RecordBuilders.EGODataBuilder());
                 }
-                WikimediaScraperFunctions.scrapePassiveData(htmlContent);
+                WikimediaScraperFunctions.scrapePassiveData(htmlContent, new RecordBuilders.EGODataBuilder());
             }
             if(category.text().equals("Status Effect Pages"))
             {
