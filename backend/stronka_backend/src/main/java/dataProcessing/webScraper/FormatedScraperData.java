@@ -3,8 +3,10 @@ package dataProcessing.webScraper;
 import java.util.List;
 import java.util.Map;
 
-//TODO Zamienić rarity i threat level na enumy
-public class FormatedScraperData {
+// TODO Zamienić rarity i threat level na enumy
+// TODO możesz wykorzystać rekordy jako podstawę do struktury bazy danych, która automatycznie zbuduje ci Spring
+public class FormatedScraperData
+{
 
     public record SinnerData(
             String sinner,
@@ -12,7 +14,7 @@ public class FormatedScraperData {
             List<EGOData> EGOs
     ){}
 
-    // Nie korzystamy z interfejsu, z racji, że utrudni mi to parsowanie danych do DB
+    // Nie korzystamy tu z interfejsu, z racji, że utrudni mi to parsowanie danych do DB
     public record IDData(
         String name,
         String portraitFile,
@@ -76,5 +78,12 @@ public class FormatedScraperData {
             String costType,
             Map<String, Integer> cost,
             List<String> effects
+    ){}
+
+    // TODO odrazu zaimplementować status effecty
+    public record statusEffect(
+            String name,
+            String iconPath,
+            List<String> description
     ){}
 }
