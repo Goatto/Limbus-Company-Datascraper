@@ -5,6 +5,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
+import org.jsoup.select.NodeTraversor;
+import org.jsoup.select.NodeVisitor;
 
 import java.util.*;
 
@@ -12,6 +14,7 @@ import static dataProcessing.webScraper.ImageScraper.scrapeImageURL;
 
 public class WikimediaScraperFunctions
 {
+    // TODO pozbyć się wszystkich instancji remove, może clone jeżeli się da
 
     // TODO stworzyć funkcję która z n obranych stron pobiera generic ikonki
     // TODO rozbić tą funkcję na mniejsze fragmenty, za dużo tu się dzieje i jest to mało czytelne
@@ -214,29 +217,38 @@ public class WikimediaScraperFunctions
                             // W innym wypadku dajemy pustego diva, żeby program się nie wyrzucił,
                             .orElse(new Element("div")));
             Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
+
             for(Element divPassiveContainer : divPassiveContainers)
             {
-                // TODO napisać tę funkcję od nowa, najlepiej rozbić do osobnej funkcji
-//                Element costSin = divPassiveContainer.selectFirst("img[alt^=LcbSin]");
-//                Element costType = divPassiveContainer.selectFirst("span[style*=Mikodacs]");
-//                if(costType != null && costSin != null)
-//                {
-//                    System.out.println("Cost: " + costSin.attr("alt").replace(".png", "")
-//                            + " " + costType.text());
-//                    // Irytujący krzyżyk
-//                    Optional.ofNullable(costSin.nextElementSibling())
-//                            //TODO: Czary-mary, później doczytać jak to dokładnie działa
-//                            .ifPresentOrElse(Node::remove, () -> System.out.println("Cannot remove"));
-//                    costSin.remove();
-//                    costType.remove();
-//                }
-//                Element passiveTitle = divPassiveContainer.selectFirst("div[style*=fit-content]");
-//                if(passiveTitle != null)
-//                {
-//                    System.out.println("Passive title: " + passiveTitle.text().trim());
-//                    passiveTitle.remove();
-//                }
-//                List<String> passiveContent = longTextSlasher(divPassiveContainer);
+                ScraperNodeVisitors.PassiveNodeVisitor passiveVisitor = new ScraperNodeVisitors.PassiveNodeVisitor();
+                NodeTraversor.traverse(passiveVisitor, divPassiveContainer);
+                FormatedScraperData.Passive passive = passiveVisitor.getBuiltPassive();
+                switch(passiveCategory)
+                {
+                    case "COMBAT_PASSIVE" ->
+                    {
+                        if(builder instanceof RecordBuilders.IDDataBuilder idBuilder)
+                        {
+                            idBuilder.addCombatPassive(passive);
+                        }
+                        else if(builder instanceof RecordBuilders.EGODataBuilder egoBuilder)
+                        {
+                            egoBuilder.addCombatPassive(passive);
+                        }
+                    }
+                    case "SUPPORT_PASSIVE" ->
+                    {
+                        if(builder instanceof RecordBuilders.IDDataBuilder idBuilder)
+                        {
+                            idBuilder.setSupportPassive(passive);
+                        }
+                        else
+                        {
+                            System.out.println("ERROR: TRIED TO SET SUPPORT PASSIVE FOR EGO");
+                        }
+                    }
+                }
+
             }
         }
     }
@@ -408,6 +420,7 @@ public class WikimediaScraperFunctions
     }
 
     // TODO też mógłbym chyba teoretycznie rozbić to na mniejsze funkcje, później o tym pomyśl
+    // TODO dodaj zbieranie status effectów
     private static FormatedScraperData.Ability processSingleAbility(Element abilityContainer)
     {
         RecordBuilders.AbilityDataBuilder builder = new RecordBuilders.AbilityDataBuilder();

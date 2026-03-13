@@ -10,10 +10,10 @@ public class Tiers
         {
             return switch (text)
             {
-                // Zabezpieczenie przed NullPointerException
                 case String s when s.contains("1") -> ONE_STAR;
                 case String s when s.contains("2") -> TWO_STAR;
                 case String s when s.contains("3") -> THREE_STAR;
+                // Zabezpieczenie przed NullPointerException
                 case null, default -> UNKOWN;
             };
         }
@@ -32,6 +32,7 @@ public class Tiers
                 case String s when s.contains("HE") -> HE;
                 case String s when s.contains("WAW") -> WAW;
                 case String s when s.contains("ALEPH") -> ALEPH;
+                // Zabezpieczenie przed NullPointerException
                 case null, default -> UNKNOWN;
             };
         }
