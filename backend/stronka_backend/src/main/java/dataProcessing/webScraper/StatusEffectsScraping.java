@@ -1,22 +1,32 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.webScraper.services.StatusEffectService;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
 import org.jsoup.select.NodeVisitor;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 
+@Component
 public class StatusEffectsScraping
 {
+    private final StatusEffectService statusEffectService;
+
+    public StatusEffectsScraping(StatusEffectService statusEffectService)
+    {
+        this.statusEffectService = statusEffectService;
+    }
+
     /**
      * Metoda odpowiednia za zebranie wszystkich status-effect'ów, przed faktycznym scrapowaniem postaci.
      * Bez wykorzystania jej na samym początku, powstałyby problemy z poprawnym wstawieniem danych do bazy danych
      * @param htmlContent Strona zawierająca wszystkie status-effecty w grze
      */
-    public static void scrapeStatusEffectData(Document htmlContent)
+    public void scrapeStatusEffectData(Document htmlContent)
     {
         Elements statusEffectsTables = htmlContent.select("table").select(".mw-collapsible.article-table");
         for(Element statusEffectsTable : statusEffectsTables)
@@ -24,8 +34,8 @@ public class StatusEffectsScraping
             Elements statusEffects = statusEffectsTable.select("tr:not(:has(th[style]))");
             for(Element statusEffect : statusEffects)
             {
-                // TODO Ten element właśnie będzie dodawany do bazy danych
                 FormatedScraperData.StatusEffect statusEffectRecord = extractStatusEffect(statusEffect);
+                statusEffectService.saveNewStatusEffect(statusEffectRecord);
             }
         }
     }

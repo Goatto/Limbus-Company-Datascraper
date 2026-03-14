@@ -1,5 +1,6 @@
 package dataProcessing.webScraper;
 
+import lombok.Getter;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
@@ -194,7 +195,10 @@ public class ScraperNodeVisitors
         private static final Pattern statRegex = Pattern.compile(".*\\d+\\s*\\(\\d+\\s*[+-]\\d+\\).*");
         private static final Pattern amountRegex = Pattern.compile("^x\\d+$");
 
+        // Automatycznie wygenerowane gettery przez Lomboka
+        @Getter
         private final List<String> baseEffects = new ArrayList<>();
+        @Getter
         private final Map<String, List<String>> coinEffects = new HashMap<>();
 
         // Buffor odpowiedni za składanie tekstu w jedną linię
@@ -297,7 +301,7 @@ public class ScraperNodeVisitors
                 if(isACoin && currentCoinNumber != null)
                 {
                     // Tworzymy array dla linijki tekstu monety
-                    coinEffects.computeIfAbsent(currentCoinNumber, k -> new ArrayList<>()).add(line);
+                    coinEffects.computeIfAbsent(currentCoinNumber, _ -> new ArrayList<>()).add(line);
                 }
                 else
                 {
@@ -305,16 +309,6 @@ public class ScraperNodeVisitors
                 }
             }
             currentLineBuffer.setLength(0);
-        }
-
-        public List<String> getBaseEffects()
-        {
-            return baseEffects;
-        }
-
-        public Map<String, List<String>> getCoinEffects()
-        {
-            return coinEffects;
         }
 
         public AbilityResult getResult()

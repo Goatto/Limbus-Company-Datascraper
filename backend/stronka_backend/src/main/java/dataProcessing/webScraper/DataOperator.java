@@ -10,93 +10,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class DataParser
+public class DataOperator
 {
     private static final int retryCount = 3;
-    static void main(String[] args)
-    {
-        try
-        {
-            // Jeden do testowania pojedynczej strony, drugi do zbierania linków do pojedynczych stron
-            // Struktura stronek do EGO i ID jest bardzo podobna, ale będę się bawił ze status effectami
-            // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
-            // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
-            List<String> urls = List.of(
-                    // ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
-                    ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
-
-            /*TODO:
-                Zebrać ikonki grzechów
-                Zebbrać ikonki rzadkości
-                Zebrać ikonki statusów
-                Zebrać ikonki resistances
-                Zebrać ikonke sanity
-             */
-            List<String> genericAssetScraper = List.of(
-                    ("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang"), // 1 gwiazdka
-                    ("https://limbuscompany.wiki.gg/wiki/Seven_Assoc._South_Section_6_Yi_Sang"), // 2 gwiazdki
-                    ("https://limbuscompany.wiki.gg/wiki/Blade_Lineage_Salsu_Yi_Sang"), // 3 gwiazdki
-                    ("https://limbuscompany.wiki.gg/wiki/Crow%27s_Eye_View_Yi_Sang"), // ZAIYN
-                    ("https://limbuscompany.wiki.gg/wiki/4th_Match_Flame_Yi_Sang"), // TETH
-                    ("https://limbuscompany.wiki.gg/wiki/Dimension_Shredder_Yi_Sang"), // HE
-                    ("https://limbuscompany.wiki.gg/wiki/Sunshower_Yi_Sang") // WAW
-            );
-
-            String statusEffects = "https://limbuscompany.wiki.gg/wiki/Status_Effects";
-
-            // Odpowiednie za zbieranie 'statycznych danych' i.e. takich danych, które wielokrotnie pojawiają się
-            // na różnych stronkach, głównie wykorzystane do pobrania ikonek status effectów
-            System.out.println("Scraping status effects: ");
-            Document selectedPage = scrapeData(statusEffects);
-            if(selectedPage != null)
-            {
-                StatusEffectsScraping.scrapeStatusEffectData(selectedPage);
-            }
-
-            System.out.println("Scraping static pages: ");
-            for(String urlDocument : genericAssetScraper)
-            {
-                selectedPage = scrapeData(urlDocument);
-                if(selectedPage != null)
-                {
-                    GenericDataScraping.checkPageType(selectedPage);
-                }
-                try
-                {
-                    Thread.sleep(3000);
-                }
-                catch (InterruptedException _) {}
-            }
-
-
-            // Wyłapanie wszystkich linków z dwóch głównych katalogów
-            List<String> urlLists = linkScraper(urls);
-            for(String urlDocument : urlLists)
-            {
-                selectedPage = scrapeData(urlDocument);
-                if(selectedPage != null)
-                {
-                        parseData(selectedPage);
-                }
-                // Jak za szybko będziemy przechodzić, to otrzymamy status: '429 Too Many Requests'
-                try
-                {
-                    Thread.sleep(3000);
-                }
-                catch (InterruptedException _) {}
-            }
-
-        }
-        catch (Throwable t)
-        {
-            // TODO dodać lepszy debugging
-            t.printStackTrace();
-        }
-    }
 
     // Na razie do sprawdzenia jak zbiera się linki, później będę musiał to inaczej zrobić z racji,
     // że każda stronka ma inną strukturę więc parser będzie musiał brać to pod uwagę
-    private static List<String> linkScraper(List<String> categories)
+    static List<String> linkScraper(List<String> categories)
     {
         List<String> outputLinks = new ArrayList<>();
         // Whitelist z racji, że w nazwach ID TAKŻE mamy nazwy jednostki, więc będzie mniej brudu
@@ -134,7 +54,7 @@ public class DataParser
         return outputLinks;
     }
 
-    private static void parseData(Document htmlContent)
+    static void parseData(Document htmlContent)
     {
         // Już sprawdzamy przed wywołaniem czy htmlContent jest null
         Elements categories = htmlContent.select("#catlinks .mw-normal-catlinks ul li");
@@ -168,7 +88,7 @@ public class DataParser
         // Sprawdzamy, która ze pod-stronek to jest
     }
 
-    private static Document scrapeData(String url)
+    static Document scrapeData(String url)
     {
         Map<String, String> jsoupHeaders = Map.of(
                 // Nasz userAgent
