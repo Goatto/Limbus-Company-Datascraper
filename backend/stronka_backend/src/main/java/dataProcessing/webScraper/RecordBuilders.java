@@ -312,9 +312,9 @@ public class RecordBuilders
             return this;
         }
 
-        public AbilityDataBuilder addCoinEffect(String coin, String coinEffect)
+        public AbilityDataBuilder setCoinEffect(Map<String, List<String>> coinEffects)
         {
-            this.coinEffects.computeIfAbsent(coin, k -> new ArrayList<>()).add(coinEffect);
+            this.coinEffects = coinEffects;
             return this;
         }
 

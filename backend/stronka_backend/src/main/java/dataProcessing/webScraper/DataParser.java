@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class DataParserFunctions
+public class DataParser
 {
     private static final int retryCount = 3;
     static void main(String[] args)
@@ -22,17 +22,59 @@ public class DataParserFunctions
             // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
             // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
             List<String> urls = List.of(
-                    ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
+                    // ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
                     ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
-            // List<String> url = List.of("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang");
 
+            /*TODO:
+                Zebrać ikonki grzechów
+                Zebbrać ikonki rzadkości
+                Zebrać ikonki statusów
+                Zebrać ikonki resistances
+                Zebrać ikonke sanity
+             */
+            List<String> genericAssetScraper = List.of(
+                    ("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang"), // 1 gwiazdka
+                    ("https://limbuscompany.wiki.gg/wiki/Seven_Assoc._South_Section_6_Yi_Sang"), // 2 gwiazdki
+                    ("https://limbuscompany.wiki.gg/wiki/Blade_Lineage_Salsu_Yi_Sang"), // 3 gwiazdki
+                    ("https://limbuscompany.wiki.gg/wiki/Crow%27s_Eye_View_Yi_Sang"), // ZAIYN
+                    ("https://limbuscompany.wiki.gg/wiki/4th_Match_Flame_Yi_Sang"), // TETH
+                    ("https://limbuscompany.wiki.gg/wiki/Dimension_Shredder_Yi_Sang"), // HE
+                    ("https://limbuscompany.wiki.gg/wiki/Sunshower_Yi_Sang") // WAW
+            );
+
+            String statusEffects = "https://limbuscompany.wiki.gg/wiki/Status_Effects";
+
+            // Odpowiednie za zbieranie 'statycznych danych' i.e. takich danych, które wielokrotnie pojawiają się
+            // na różnych stronkach, głównie wykorzystane do pobrania ikonek status effectów
+            System.out.println("Scraping status effects: ");
+            Document selectedPage = scrapeData(statusEffects);
+            if(selectedPage != null)
+            {
+                StatusEffectsScraping.scrapeStatusEffectData(selectedPage);
+            }
+
+            System.out.println("Scraping static pages: ");
+            for(String urlDocument : genericAssetScraper)
+            {
+                selectedPage = scrapeData(urlDocument);
+                if(selectedPage != null)
+                {
+                    GenericDataScraping.checkPageType(selectedPage);
+                }
+                try
+                {
+                    Thread.sleep(3000);
+                }
+                catch (InterruptedException _) {}
+            }
+
+
+            // Wyłapanie wszystkich linków z dwóch głównych katalogów
             List<String> urlLists = linkScraper(urls);
-            // Ręcznie dodajemy Status_Effect, bo czemu nie
-            urlLists.add("https://limbuscompany.wiki.gg/wiki/Status_Effects");
             for(String urlDocument : urlLists)
             {
-                Document selectedPage = scrapeData(urlDocument);
-                if (selectedPage != null)
+                selectedPage = scrapeData(urlDocument);
+                if(selectedPage != null)
                 {
                         parseData(selectedPage);
                 }
@@ -47,7 +89,7 @@ public class DataParserFunctions
         }
         catch (Throwable t)
         {
-            // Później jakiś lepszy debugging zrobię
+            // TODO dodać lepszy debugging
             t.printStackTrace();
         }
     }
@@ -94,8 +136,6 @@ public class DataParserFunctions
 
     private static void parseData(Document htmlContent)
     {
-        // Wyrzucić tooltipy z samego początku
-        htmlContent.select(".tooltip-contents").remove();
         // Już sprawdzamy przed wywołaniem czy htmlContent jest null
         Elements categories = htmlContent.select("#catlinks .mw-normal-catlinks ul li");
         for(Element category : categories)
@@ -103,21 +143,21 @@ public class DataParserFunctions
             if(category.text().equals("E.G.O") || category.text().equals("Identities"))
             {
                 RecordBuilders.IDDataBuilder builder = new RecordBuilders.IDDataBuilder();
-                WikimediaScraperFunctions.scrapeGeneralIDData(htmlContent, builder);
+                WikimediaScraper.scrapeGeneralIDData(htmlContent, builder);
 
                 if (category.text().equals("Identities"))
                 {
                     // Tylko ID mają sanity
                     // TODO Buildery tutaj są temp, tak by program się nie wykrzaczał
-                    WikimediaScraperFunctions.scrapeSanityData(htmlContent, new RecordBuilders.IDDataBuilder());
+                    WikimediaScraper.scrapeSanityData(htmlContent, new RecordBuilders.IDDataBuilder());
                     // E.G.O przechowują umiejętności i pasywki w inny sposób
-                    WikimediaScraperFunctions.scrapeIDAbilityData(htmlContent);
+                    WikimediaScraper.scrapeIDAbilityData(htmlContent);
                 }
                 else if(category.text().equals("E.G.O"))
                 {
-                    WikimediaScraperFunctions.scrapeEGOAbilities(htmlContent, new RecordBuilders.EGODataBuilder());
+                    WikimediaScraper.scrapeEGOAbilities(htmlContent, new RecordBuilders.EGODataBuilder());
                 }
-                WikimediaScraperFunctions.scrapePassiveData(htmlContent, new RecordBuilders.EGODataBuilder());
+                WikimediaScraper.scrapePassiveData(htmlContent, new RecordBuilders.EGODataBuilder());
             }
             if(category.text().equals("Status Effect Pages"))
             {
@@ -151,6 +191,8 @@ public class DataParserFunctions
                         .headers(jsoupHeaders)
                         .get();
                 System.out.println("Scraped " + url);
+                // TODO Nie wiem czy to nie może przypadkiem jakiś problemów sprawić, więc sobie zaznaczam na później
+                document.select(".tooltip-contents").remove();
                 return document;
             }
             catch (IOException e)

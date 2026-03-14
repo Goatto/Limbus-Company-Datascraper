@@ -2,6 +2,9 @@ package dataProcessing.webScraper;
 
 public class Tiers
 {
+    /**
+     * Reprezentuje rzadkość ID, wykorzystywane w rekordzie {@link dataProcessing.webScraper.FormatedScraperData.IDData}
+     */
     public enum Rarity
     {
         ONE_STAR, TWO_STAR, THREE_STAR, UNKOWN;
@@ -18,7 +21,9 @@ public class Tiers
             };
         }
     }
-
+    /**
+     * Reprezentuje stopień EGO, wykorzystywane w rekordzie {@link dataProcessing.webScraper.FormatedScraperData.EGOData}
+     */
     public enum ThreatLevel
     {
         ZAYIN, TETH, HE, WAW, ALEPH, UNKNOWN;

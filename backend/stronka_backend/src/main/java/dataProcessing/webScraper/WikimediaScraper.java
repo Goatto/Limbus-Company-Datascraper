@@ -5,18 +5,17 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
-import org.jsoup.select.NodeTraversor;
-import org.jsoup.select.NodeVisitor;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import static dataProcessing.webScraper.ImageScraper.scrapeImageURL;
 
-public class WikimediaScraperFunctions
+public class WikimediaScraper
 {
-    // TODO pozbyć się wszystkich instancji remove, może clone jeżeli się da
+    // TODO pozbyć się wszystkich instancji remove
 
-    // TODO stworzyć funkcję która z n obranych stron pobiera generic ikonki
     // TODO rozbić tą funkcję na mniejsze fragmenty, za dużo tu się dzieje i jest to mało czytelne
 
     public static RecordBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
@@ -219,10 +218,8 @@ public class WikimediaScraperFunctions
             Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
 
             for(Element divPassiveContainer : divPassiveContainers)
-            {
-                ScraperNodeVisitors.PassiveNodeVisitor passiveVisitor = new ScraperNodeVisitors.PassiveNodeVisitor();
-                NodeTraversor.traverse(passiveVisitor, divPassiveContainer);
-                FormatedScraperData.Passive passive = passiveVisitor.getBuiltPassive();
+            {;
+                FormatedScraperData.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
                 switch(passiveCategory)
                 {
                     case "COMBAT_PASSIVE" ->
@@ -242,10 +239,6 @@ public class WikimediaScraperFunctions
                         {
                             idBuilder.setSupportPassive(passive);
                         }
-                        else
-                        {
-                            System.out.println("ERROR: TRIED TO SET SUPPORT PASSIVE FOR EGO");
-                        }
                     }
                 }
 
@@ -253,7 +246,7 @@ public class WikimediaScraperFunctions
         }
     }
 
-    // TODO Wypełnić buildera
+    // TODO Wypełnić builderao
     // TODO to NAPEWNO rozbić na mniejsze funkcje, absolutnie mało czytelne i chaotycznie napisane
     public static void scrapeEGOAbilities(Document htmlContent, RecordBuilders.EGODataBuilder builder)
     {
@@ -379,21 +372,6 @@ public class WikimediaScraperFunctions
         processSingleAbility(corrosionInformation);
     }
 
-    private static List<String> longTextSlasher(Element divPassiveContainer)
-    {
-        divPassiveContainer.select("br").before("|||");
-        String rawSplitPassive = divPassiveContainer.text();
-        List<String> splitPassive = Arrays.asList(rawSplitPassive.split("\\|\\|\\|"));
-        for (String passiveLine : splitPassive)
-        {
-            if (!passiveLine.trim().isEmpty())
-            {
-                System.out.println(passiveLine.trim());
-            }
-        }
-        return splitPassive;
-    }
-
     private static void parseResistances(String text, String[] resistanceNames, RecordBuilders.BaseEquippableBuilder<?> builder)
     {
         String[] resistances = text.split(" ");
@@ -508,39 +486,39 @@ public class WikimediaScraperFunctions
         // ownText wyciąga tekst, który jest zawarty w pojemniku rightAbilityPanel,
         // ale nie w jego dzieciach
         // KATASTROFALNA kombinacja metody po metodzie
-        String offenseLevel = rightAbilityPanel.textNodes().getFirst().text().replaceAll(".*([+-]\\d+).*", "$1");
+        // String offenseLevel = rightAbilityPanel.textNodes().getFirst().text().replaceAll(".*([+-]\\d+).*", "$1");
+
+        // Powinno być bezpieczniejsze, ale nie wiem czy nie znacznie wolniejsze
+        String offenseLevel = rightAbilityPanel.textNodes().stream()
+                        .map(tn -> tn.text().trim())
+                        .filter(t -> t.matches(".*[+-]\\d+.*"))
+                        .findFirst()
+                        .map(t -> t.replaceAll(".*([+-]\\d+).*", "$1"))
+                        .orElse("0");
+
         builder.setOffenseLevel(offenseLevel);
         System.out.println("Offense level: " + offenseLevel);
 
-        Element preAbilityEffects = rightAbilityPanel.clone();
-        // Zawsze powinno istnieć, ale chcemy ominąc wyrzucenie całego programu
-        Optional.ofNullable(preAbilityEffects.selectFirst("div span")).ifPresentOrElse(
-                Element::remove,
-                () -> System.out.println("No 'div span' for removal"));
-        Optional.ofNullable(preAbilityEffects.selectFirst("font")).ifPresentOrElse(
-                Element::remove,
-                () -> System.out.println("No 'font' for removal"));
-        // Usuwamy elementy, żeby się nie powtarzały
-        preAbilityEffects.textNodes().getFirst().remove();
-        preAbilityEffects.select("div[style*=\"padding-left\"]").remove();
-        // Będę musiał to jakoś trochę inaczej zrobić chyba
-        builder.setBaseEffects(longTextSlasher(preAbilityEffects));
+        ScraperNodeVisitors.AbilityResult result = ScraperNodeVisitors.extractAbility(rightAbilityPanel);
 
-        Elements abilityCoins = rightAbilityPanel.select("div[style*=\"padding-left\"]");
-        for (Element coin : abilityCoins)
+        builder.setBaseEffects(result.baseEffects());
+        System.out.println("Base effects:");
+        if (result.baseEffects().isEmpty())
         {
-            // Szukamy obrazka o danym alt
-            Element coinImage = coin.selectFirst("img[alt^=\"CoinEffect\"]");
-            if (coinImage != null) {
-                String coinNumber = coinImage.attr("alt");
-                // Usuwamy wszystko, co nie jest liczbą
-                coinNumber = coinNumber.replaceAll("\\D+", "");
-                String effectText = coin.text();
-                builder.addCoinEffect(coinNumber, effectText);
-                System.out.println("Coin" + coinNumber + " : " + effectText);
-            }
-
+            System.out.println("- No Base Effects");
         }
+        else
+        {
+            result.baseEffects().forEach(effect -> System.out.println("- " + effect));
+        }
+
+        builder.setCoinEffect(result.coinEffects());
+        result.coinEffects().forEach((coinNum, effects) ->
+        {
+            System.out.println("Coin " + coinNum + " effects: ");
+            effects.forEach(effect -> System.out.println("- " + effect));
+        });
+
         return builder.buildAbilityData();
     }
 }

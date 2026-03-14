@@ -1,0 +1,12 @@
+spring:
+  # Informację o tym, jak połączyć się z nasza baza danych
+  datasource:
+    password: postgres
+    url: jdbc:postgresql://localhost:5432/limbus_company_db
+    username: postgres
+  jpa:
+    hibernate:
+      # Spring sam będzie tworzył lub aktualizował tabele
+      ddl-auto: update
+    # Wyświetla zapytania SQL w konsoli
+    show-sql: true
