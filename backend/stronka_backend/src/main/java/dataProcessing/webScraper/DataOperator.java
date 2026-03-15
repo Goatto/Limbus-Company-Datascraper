@@ -1,18 +1,27 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.DTOBuilders;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Component
 public class DataOperator
 {
+    private final WikimediaScraper wikimediaScraper;
     private static final int retryCount = 3;
+
+    public DataOperator(WikimediaScraper wikimediaScraper)
+    {
+        this.wikimediaScraper = wikimediaScraper;
+    }
 
     // Na razie do sprawdzenia jak zbiera się linki, później będę musiał to inaczej zrobić z racji,
     // że każda stronka ma inną strukturę więc parser będzie musiał brać to pod uwagę
@@ -54,38 +63,31 @@ public class DataOperator
         return outputLinks;
     }
 
-    static void parseData(Document htmlContent)
+    void parseData(Document htmlContent)
     {
         // Już sprawdzamy przed wywołaniem czy htmlContent jest null
         Elements categories = htmlContent.select("#catlinks .mw-normal-catlinks ul li");
         for(Element category : categories)
         {
-            if(category.text().equals("E.G.O") || category.text().equals("Identities"))
+            String categoryText = category.text();
+            if (categoryText.equals("Identities"))
             {
-                RecordBuilders.IDDataBuilder builder = new RecordBuilders.IDDataBuilder();
-                WikimediaScraper.scrapeGeneralIDData(htmlContent, builder);
+                DTOBuilders.IDDataBuilder builder = new DTOBuilders.IDDataBuilder();
 
-                if (category.text().equals("Identities"))
-                {
-                    // Tylko ID mają sanity
-                    // TODO Buildery tutaj są temp, tak by program się nie wykrzaczał
-                    WikimediaScraper.scrapeSanityData(htmlContent, new RecordBuilders.IDDataBuilder());
-                    // E.G.O przechowują umiejętności i pasywki w inny sposób
-                    WikimediaScraper.scrapeIDAbilityData(htmlContent);
-                }
-                else if(category.text().equals("E.G.O"))
-                {
-                    WikimediaScraper.scrapeEGOAbilities(htmlContent, new RecordBuilders.EGODataBuilder());
-                }
-                WikimediaScraper.scrapePassiveData(htmlContent, new RecordBuilders.EGODataBuilder());
+                WikimediaScraper.scrapeGeneralIDData(htmlContent, builder);
+                WikimediaScraper.scrapeSanityData(htmlContent, builder);
+                wikimediaScraper.scrapeIDAbilityData(htmlContent);
+                WikimediaScraper.scrapePassiveData(htmlContent, builder);
             }
-            if(category.text().equals("Status Effect Pages"))
+            else if (categoryText.equals("E.G.O"))
             {
-                System.out.println("STATUS EFFECT");
+                DTOBuilders.EGODataBuilder builder = new DTOBuilders.EGODataBuilder();
+
+                WikimediaScraper.scrapeEGOAbilities(htmlContent, builder);
+                WikimediaScraper.scrapePassiveData(htmlContent, builder);
             }
             break;
         }
-        // Sprawdzamy, która ze pod-stronek to jest
     }
 
     static Document scrapeData(String url)

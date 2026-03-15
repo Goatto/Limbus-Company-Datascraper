@@ -1,10 +1,12 @@
-package dataProcessing.webScraper;
+package dataProcessing;
+
+import dataProcessing.webScraper.enums.Tiers;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class FormatedScraperData
+public class ScraperDataDTOs
 {
 
     /**
@@ -22,6 +24,7 @@ public class FormatedScraperData
     /**
      * Rekord odpowiedni za zebranie wszystkich informacji o jednym ID
      * @param name Nazwa ID
+     // * @param sinnerName Nazwa sinnera, który posiada te ID
      * @param portraitFile Nazwa pliku zawierająca portret ID
      * @param rarity Rzadkość ID
      * @param world Świat, do którego należy ID
@@ -43,6 +46,8 @@ public class FormatedScraperData
     // Nie korzystamy z interfejsu, z racji, że utrudni mi to parsowanie danych do DB
     public record IDData(
         String name,
+        // TODO sprawdzić czy to ma sens
+        // String sinnerName,
         String portraitFile,
         Tiers.Rarity rarity,
         String world,
@@ -67,8 +72,9 @@ public class FormatedScraperData
     /**
      * Rekord odpowiedni za zebranie wszystkich informacji o jednym EGO
      * @param name Nazwa Ego
+     // * @param sinnerName Nazwa sinnera, który posiada te EGO
      * @param portraitFile Nazwa pliku zawierająca portret EGO
-     * @param threatLevel Poziom zagrożenia EGO (ie. w jakim slotcie jest wykorzystany w grze)
+     * @param threatLevel Poziom zagrożenia EGO (ie. w jakim slot'cie jest wykorzystany w grze)
      * @param season Sezon wydania ID
      * @param releaseDate Data wydania ID
      * @param sinAffinity Główny sin EGO
@@ -83,6 +89,8 @@ public class FormatedScraperData
      */
     public record EGOData(
         String name,
+        // TODO sprawdzić czy to ma sens
+        // String sinnerName,
         String portraitFile,
         Tiers.ThreatLevel threatLevel,
         String season,
@@ -160,6 +168,10 @@ public class FormatedScraperData
             String name,
             String icon,
             List<String> description,
+            // TODO to jest kompletnie niepotrzebne, i tak nie będę wyświetlał ikonek z tego
             Set<String> relatedEffects
     ){}
+
+    // TODO ewentualnie też później pomyśl o stworzeniem rekordu/encji tylko dla sanity effectów,
+    //  z racji że bardzo często się potwarzają
 }

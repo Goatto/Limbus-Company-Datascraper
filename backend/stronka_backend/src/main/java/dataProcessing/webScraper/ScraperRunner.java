@@ -9,14 +9,25 @@ import java.util.List;
 import static dataProcessing.webScraper.DataOperator.*;
 
 @Component
-public class ScraperRunner implements CommandLineRunner {
-    private final StatusEffectsScraping scraper;
+/*
+    CommandLineRunner to interface, który pozwala na wykonanie kodu, kiedy kontekst aplikacji spring zostanie
+    zainicjalizowany. Zawiera tylko jedną metodę run()
+ */
+public class ScraperRunner implements CommandLineRunner
+{
+    private final StatusEffectsScraping statusEffectsScraper;
+    private final DataOperator dataOperator;
 
-    public ScraperRunner(StatusEffectsScraping scraper) {
-        this.scraper = scraper;
+    public ScraperRunner(StatusEffectsScraping statusEffectsScraper, DataOperator dataOperator)
+    {
+        this.statusEffectsScraper = statusEffectsScraper;
+        this.dataOperator = dataOperator;
     }
 
     @Override
+    /*
+        Metoda run jest wykonywana w momencie inicjalizacji kontekstu springa
+     */
     public void run(String... args) throws Exception
     {
         {
@@ -27,8 +38,8 @@ public class ScraperRunner implements CommandLineRunner {
                 // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
                 // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
                 List<String> urls = List.of(
-                        // ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
-                        ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
+                            //("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
+                            ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
 
                 List<String> genericAssetScraper = List.of(
                         ("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang"), // 1 gwiazdka
@@ -48,7 +59,7 @@ public class ScraperRunner implements CommandLineRunner {
                 Document selectedPage = scrapeData(statusEffects);
                 if(selectedPage != null)
                 {
-                    scraper.scrapeStatusEffectData(selectedPage);
+                    statusEffectsScraper.scrapeStatusEffectData(selectedPage);
                 }
 
                 System.out.println("Scraping static pages: ");
@@ -66,7 +77,6 @@ public class ScraperRunner implements CommandLineRunner {
                     catch (InterruptedException _) {}
                 }
 
-
                 // Wyłapanie wszystkich linków z dwóch głównych katalogów
                 List<String> urlLists = linkScraper(urls);
                 for(String urlDocument : urlLists)
@@ -74,7 +84,7 @@ public class ScraperRunner implements CommandLineRunner {
                     selectedPage = scrapeData(urlDocument);
                     if(selectedPage != null)
                     {
-                        parseData(selectedPage);
+                        dataOperator.parseData(selectedPage);
                     }
                     // Jak za szybko będziemy przechodzić, to otrzymamy status: '429 Too Many Requests'
                     try
@@ -90,6 +100,7 @@ public class ScraperRunner implements CommandLineRunner {
                 // TODO dodać lepszy debugging
                 t.printStackTrace();
             }
+            // TODO Więc tutaj bym musiał obsłużyć komunikację pomiędzy backiem i endem, albo zacząć przynajmniej?
         }
     }
 }

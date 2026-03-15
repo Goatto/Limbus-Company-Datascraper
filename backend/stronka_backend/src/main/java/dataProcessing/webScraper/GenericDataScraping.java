@@ -1,5 +1,6 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.webScraper.utils.ImageScraper;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 

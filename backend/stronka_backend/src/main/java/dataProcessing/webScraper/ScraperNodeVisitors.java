@@ -1,5 +1,6 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.ScraperDataDTOs;
 import lombok.Getter;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
@@ -16,7 +17,7 @@ public class ScraperNodeVisitors
      * @param rootNode Element zawierający umiejętności pasywne
      * @return Rekord jednej umiejętności pasywnej
      */
-    public static FormatedScraperData.Passive extractPassive(Node rootNode)
+    public static ScraperDataDTOs.Passive extractPassive(Node rootNode)
     {
         PassiveNodeVisitor visitor = new PassiveNodeVisitor();
         rootNode.traverse(visitor);
@@ -43,7 +44,7 @@ public class ScraperNodeVisitors
         String costType = "";
         boolean isTheAnnoyingX = false;
 
-        private FormatedScraperData.Passive resultPassive;
+        private ScraperDataDTOs.Passive resultPassive;
 
         @Override
         public void head(Node node, int depth)
@@ -157,14 +158,14 @@ public class ScraperNodeVisitors
                     System.out.println(descriptionLine);
                 }
 
-                this.resultPassive = new FormatedScraperData.Passive(
+                this.resultPassive = new ScraperDataDTOs.Passive(
                         finalTitle,
                         finalCostType,
                         costBuffer,
                         finalEffects);
             }
         }
-        private FormatedScraperData.Passive getBuiltPassive()
+        private ScraperDataDTOs.Passive getBuiltPassive()
         {
             return this.resultPassive;
         }

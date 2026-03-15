@@ -1,24 +1,35 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.DTOBuilders;
+import dataProcessing.ScraperDataDTOs;
+import dataProcessing.services.AbilityService;
+import dataProcessing.webScraper.enums.Tiers;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static dataProcessing.webScraper.ImageScraper.scrapeImageURL;
+import static dataProcessing.webScraper.utils.ImageScraper.scrapeImageURL;
 
+@Component
 public class WikimediaScraper
 {
+    private final AbilityService abilityService;
+
+    public WikimediaScraper(AbilityService abilityService)
+    {
+        this.abilityService = abilityService;
+    }
+
     // TODO pozbyć się wszystkich instancji remove
 
-    // TODO rozbić tą funkcję na mniejsze fragmenty, za dużo tu się dzieje i jest to mało czytelne
-
-    public static RecordBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
+    public static DTOBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         String[] idResistances = {"Slash", "Pierce", "Blunt"};
 
@@ -29,7 +40,7 @@ public class WikimediaScraper
 
         smallSelector = htmlContent.selectFirst(".mw-collapsible-content a img");
 
-        // Pobieramy obrazek i od razu ustawiamy nazwe
+        // Pobieramy obrazek i od razu ustawiamy nazwę
         builder.setPortraitFile(scrapeImageURL(smallSelector));
         Elements largeSelector = htmlContent.select("#General_Info-0 table tr");
         for (Element row : largeSelector)
@@ -52,7 +63,7 @@ public class WikimediaScraper
             }
             // Zawsze tylko traits
             // Wykombinować jak to rozdzielić, pewnie będzie to jakaś lista stringów w klasie wsmie
-            if (specifiedRowSize == 2)
+            else if (specifiedRowSize == 2)
             {
                 specificatorHelper = specifiedRow.get(1);
                 Elements unitTraits = specificatorHelper.getElementsByTag("b");
@@ -64,20 +75,20 @@ public class WikimediaScraper
                 }
             }
             // Zawsze resistances, będę musiał jakoś wyjąć tylko wartości z nawiasów klamrowych
-            if (specifiedRowSize == 3 && !specifiedRow.getFirst().text().isEmpty())
+            else if (specifiedRowSize == 3 && !specifiedRow.getFirst().text().isEmpty())
             {
                 // Tu jest git
                 parseResistances(specifiedRow.text(), idResistances, builder);
             }
 
-            if (specifiedRowSize == 4)
+           else if (specifiedRowSize == 4)
             {
                 String rowType = "ERROR!";
                 if(specifiedRow.get(0).text().contains("Rarity"))
                 {
                     rowType = "RarityWorld";
                 }
-                if(specifiedRow.get(0).text().contains("Season"))
+               else if(specifiedRow.get(0).text().contains("Season"))
                 {
                     rowType = "SeasonRelease";
                 }
@@ -98,7 +109,7 @@ public class WikimediaScraper
                     System.out.println("World : " + worldIMG);
                     scrapeImageURL(worldIMGURL);
                 }
-                if(rowType.equals("SeasonRelease"))
+                else if(rowType.equals("SeasonRelease"))
                 {
                     builder.setSeason(specifiedRow.get(1).text());
                     System.out.println("Season : " + specifiedRow.get(1).text());
@@ -107,7 +118,7 @@ public class WikimediaScraper
                 }
             }
             // Zawsze życie + speed + def. level
-            if (specifiedRowSize == 6)
+            else if (specifiedRowSize == 6)
             {
                 builder.setHealth(Integer.parseInt(specifiedRow.get(1).text().trim()));
                 System.out.println("Health: " + specifiedRow.get(1).text());
@@ -120,15 +131,13 @@ public class WikimediaScraper
         return builder;
     }
 
-    public static RecordBuilders.IDDataBuilder scrapeSanityData(Document htmlContent, RecordBuilders.IDDataBuilder builder)
+    public static DTOBuilders.IDDataBuilder scrapeSanityData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         Elements sanitySelector = htmlContent.select("#Sanity-0 table tr td div");
         for (Element sanitySection : sanitySelector)
         {
             String headerText = sanitySection.select("ul span").text();
             Elements sanityEffects = sanitySection.select("ul li");
-            // Muszę teraz jakoś przejść przez wszystkie linijki i je połączyć sensownie
-            // TODO tutaj też mógłbym teoretycznie ładnie to rozłożyć na pomniejsze funkcje
             if (headerText.contains("increasing Sanity"))
             {
                 System.out.println("Sanity+:");
@@ -153,26 +162,30 @@ public class WikimediaScraper
         return builder;
     }
 
-    public static List<FormatedScraperData.Ability> scrapeIDAbilityData(Document htmlContent)
+    // TODO jeżeli chcę dodać wstawianie umiejętności do db, musiałbym tutaj nad tym operować
+    public List<ScraperDataDTOs.Ability> scrapeIDAbilityData(Document htmlContent)
     {
-        List<FormatedScraperData.Ability> abilities = new ArrayList<>();
+        //FIXME Nie zbiera 3-2 z jakiejś racji
+        List<ScraperDataDTOs.Ability> abilities = new ArrayList<>();
 
         Elements largeSelector = htmlContent.select(".tabber .tabber__section [id^=Skill_1-], "
                 + ".tabber .tabber__section [id^=Skill_2-], "
                 + ".tabber .tabber__section [id^=Skill_3-], "
                 + ".tabber .tabber__section [id^=Defense-], "
                 + ".tabber .tabber__section [id^=Defense_]");
-        for (Element element : largeSelector) {
+        for (Element element : largeSelector)
+        {
             // Elementy -label nas nie interesują, jak i nie chcemy kontynerów
             if (element.id().endsWith("-label") || !element.select(".tabber").isEmpty())
             {
                 continue;
             }
-            processSingleAbility(element);
+            // TODO tutaj chyba odbywało by się dodawanie
+           abilityService.saveNewAbility(processSingleAbility(element));
         }
         return abilities;
     }
-    public static void scrapePassiveData(Document htmlContent, RecordBuilders.BaseEquippableBuilder<?> builder)
+    public static void scrapePassiveData(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder)
     {
         // Ciekawy styl jest z tym b:contains...
         Elements prePassiveHeaders = htmlContent.select("b:contains(Passive), "
@@ -219,23 +232,23 @@ public class WikimediaScraper
 
             for(Element divPassiveContainer : divPassiveContainers)
             {;
-                FormatedScraperData.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
+                ScraperDataDTOs.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
                 switch(passiveCategory)
                 {
                     case "COMBAT_PASSIVE" ->
                     {
-                        if(builder instanceof RecordBuilders.IDDataBuilder idBuilder)
+                        if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
                         {
                             idBuilder.addCombatPassive(passive);
                         }
-                        else if(builder instanceof RecordBuilders.EGODataBuilder egoBuilder)
+                        else if(builder instanceof DTOBuilders.EGODataBuilder egoBuilder)
                         {
                             egoBuilder.addCombatPassive(passive);
                         }
                     }
                     case "SUPPORT_PASSIVE" ->
                     {
-                        if(builder instanceof RecordBuilders.IDDataBuilder idBuilder)
+                        if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
                         {
                             idBuilder.setSupportPassive(passive);
                         }
@@ -248,7 +261,7 @@ public class WikimediaScraper
 
     // TODO Wypełnić builderao
     // TODO to NAPEWNO rozbić na mniejsze funkcje, absolutnie mało czytelne i chaotycznie napisane
-    public static void scrapeEGOAbilities(Document htmlContent, RecordBuilders.EGODataBuilder builder)
+    public static void scrapeEGOAbilities(Document htmlContent, DTOBuilders.EGODataBuilder builder)
     {
         // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
         Elements genericRows;
@@ -257,7 +270,6 @@ public class WikimediaScraper
                 .map(content -> content.selectFirst(".mw-body-content"))
                 .orElse(new Element("div"));
 
-        // TODO Chyba mogę zmodyfikować scrapeGeneralData by wykorzystywało informacje z tego miejsca
         Element genericInformationInfo = Optional.ofNullable(
                 genericInformation.selectFirst("b:contains(Info)"))
                     .map(container -> container.closest("tbody"))
@@ -281,7 +293,7 @@ public class WikimediaScraper
                     System.out.println("Risk Level: " + riskLevel);
                     System.out.println("Season: " + specifiedRow.get(3).text());
                 }
-                if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
+                else if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
                 {
                     System.out.println("Affinity: " + Optional.ofNullable(
                             specifiedRow.get(1).selectFirst("img"))
@@ -289,7 +301,7 @@ public class WikimediaScraper
                                 .orElse("Image not found"));
                     System.out.println("Release: " + specifiedRow.get(3).text());
                 }
-                if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
+                else if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
                 {
                     System.out.println("Abnormality: " + specifiedRow.get(1).text());
                 }
@@ -301,6 +313,7 @@ public class WikimediaScraper
                     .orElse(new Element("div"));
 
         // Usuwamy headery
+        // FIXME Wyrzuca się na https://limbuscompany.wiki.gg/wiki/Bodysack_Heathcliff
         genericInformationCost.child(0).remove();
         genericInformationCost.child(2).remove();
         genericRows = genericInformationCost.getElementsByTag("tr");
@@ -357,7 +370,7 @@ public class WikimediaScraper
 
         for(Element row : genericRows)
         {
-            parseResistances(row.text(), egoResistances, new RecordBuilders.EGODataBuilder());
+            parseResistances(row.text(), egoResistances, new DTOBuilders.EGODataBuilder());
         }
         Element awakeningInformation = Optional.ofNullable(htmlContent)
                 .map(content -> content.selectFirst(
@@ -372,7 +385,7 @@ public class WikimediaScraper
         processSingleAbility(corrosionInformation);
     }
 
-    private static void parseResistances(String text, String[] resistanceNames, RecordBuilders.BaseEquippableBuilder<?> builder)
+    private static void parseResistances(String text, String[] resistanceNames, DTOBuilders.BaseEquippableBuilder<?> builder)
     {
         String[] resistances = text.split(" ");
         int index = 0;
@@ -399,9 +412,9 @@ public class WikimediaScraper
 
     // TODO też mógłbym chyba teoretycznie rozbić to na mniejsze funkcje, później o tym pomyśl
     // TODO dodaj zbieranie status effectów
-    private static FormatedScraperData.Ability processSingleAbility(Element abilityContainer)
+    private static ScraperDataDTOs.Ability processSingleAbility(Element abilityContainer)
     {
-        RecordBuilders.AbilityDataBuilder builder = new RecordBuilders.AbilityDataBuilder();
+        DTOBuilders.AbilityDataBuilder builder = new DTOBuilders.AbilityDataBuilder();
 
         List<String> iconWhiteList = List.of("Wrath1.png","Wrath2.png","Wrath3.png",
                 "Lust1.png", "Lust2.png", "Lust3.png",
@@ -413,6 +426,7 @@ public class WikimediaScraper
 
         // Żebym wiedział, co się dzieje
         String skillSlot = abilityContainer.id();
+        builder.setSkillSlot(skillSlot);
         System.out.println("\nPROCESSING: " + skillSlot);
 
         // Zwraca pusty pojemnik, jeżeli nie istnieje
@@ -465,7 +479,9 @@ public class WikimediaScraper
             if (image.attr("alt").contains("Coin"))
             {
                 coinCount += 1;
-            } else {
+            }
+            else
+            {
                 break;
             }
         }

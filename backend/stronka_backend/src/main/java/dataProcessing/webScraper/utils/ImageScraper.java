@@ -1,4 +1,4 @@
-package dataProcessing.webScraper;
+package dataProcessing.webScraper.utils;
 
 import org.jsoup.nodes.Element;
 

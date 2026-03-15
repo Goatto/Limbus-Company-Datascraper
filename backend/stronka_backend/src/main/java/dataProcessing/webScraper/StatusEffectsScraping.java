@@ -1,6 +1,8 @@
 package dataProcessing.webScraper;
 
-import dataProcessing.webScraper.services.StatusEffectService;
+import dataProcessing.ScraperDataDTOs;
+import dataProcessing.services.StatusEffectService;
+import dataProcessing.webScraper.utils.ImageScraper;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
@@ -34,8 +36,7 @@ public class StatusEffectsScraping
             Elements statusEffects = statusEffectsTable.select("tr:not(:has(th[style]))");
             for(Element statusEffect : statusEffects)
             {
-                FormatedScraperData.StatusEffect statusEffectRecord = extractStatusEffect(statusEffect);
-                statusEffectService.saveNewStatusEffect(statusEffectRecord);
+                statusEffectService.saveNewStatusEffect(extractStatusEffect(statusEffect));
             }
         }
     }
@@ -45,7 +46,7 @@ public class StatusEffectsScraping
      * @param rootNode Obecny wiersz z jednym status-effectem
      * @return Rekord pojedynczego status-effect'u
      */
-    public static FormatedScraperData.StatusEffect extractStatusEffect(Node rootNode)
+    public static ScraperDataDTOs.StatusEffect extractStatusEffect(Node rootNode)
     {
         StatusEffectNodeVisitor visitor = new StatusEffectNodeVisitor();
         rootNode.traverse(visitor);
@@ -67,7 +68,7 @@ public class StatusEffectsScraping
         // Najłatwiejszy sposób na zdecydowanie co gdzie wkleić, nasza linijka posiada n pojemników, lecz nas interesują
         // tylko pierwsze dwie, (1 oraz 2)
         private int currentBox = 0;
-        private FormatedScraperData.StatusEffect resultStatusEffect;
+        private ScraperDataDTOs.StatusEffect resultStatusEffect;
 
         @Override
         public void head(Node node, int depth)
@@ -148,7 +149,7 @@ public class StatusEffectsScraping
                     System.out.println(" -" + line);
                 }
 
-                this.resultStatusEffect = new FormatedScraperData.StatusEffect(
+                this.resultStatusEffect = new ScraperDataDTOs.StatusEffect(
                         finalName,
                         finalIcon,
                         finalDescriptionLines,
@@ -156,7 +157,7 @@ public class StatusEffectsScraping
             }
         }
 
-        public FormatedScraperData.StatusEffect getStatusEffect()
+        public ScraperDataDTOs.StatusEffect getStatusEffect()
         {
             return this.resultStatusEffect;
         }

@@ -1,8 +1,8 @@
-package dataProcessing.webScraper.services;
+package dataProcessing.services;
 
-import dataProcessing.webScraper.FormatedScraperData;
-import dataProcessing.webScraper.models.StatusEffectEntity;
-import dataProcessing.webScraper.repositories.StatusEffectRepository;
+import dataProcessing.ScraperDataDTOs;
+import dataProcessing.models.StatusEffectEntity;
+import dataProcessing.repositories.StatusEffectRepository;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,7 +15,7 @@ public class StatusEffectService
         this.statusEffectRepository = statusEffectRepository;
     }
 
-    public void saveNewStatusEffect(FormatedScraperData.StatusEffect newStatusEffect)
+    public void saveNewStatusEffect(ScraperDataDTOs.StatusEffect newStatusEffect)
     {
         // Tworzenie pustej encji
         StatusEffectEntity statusEffectEntity = new StatusEffectEntity();

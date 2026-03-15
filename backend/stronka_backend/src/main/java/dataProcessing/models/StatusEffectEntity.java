@@ -1,4 +1,4 @@
-package dataProcessing.webScraper.models;
+package dataProcessing.models;
 
 import jakarta.persistence.*;
 import lombok.Getter;

@@ -1,6 +1,6 @@
-package dataProcessing.webScraper.repositories;
+package dataProcessing.repositories;
 
-import dataProcessing.webScraper.models.StatusEffectEntity;
+import dataProcessing.models.StatusEffectEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,9 +1,11 @@
-package dataProcessing.webScraper;
+package dataProcessing.webScraper.enums;
+
+import dataProcessing.ScraperDataDTOs;
 
 public class Tiers
 {
     /**
-     * Reprezentuje rzadkość ID, wykorzystywane w rekordzie {@link dataProcessing.webScraper.FormatedScraperData.IDData}
+     * Reprezentuje rzadkość ID, wykorzystywane w rekordzie {@link ScraperDataDTOs.IDData}
      */
     public enum Rarity
     {
@@ -22,7 +24,7 @@ public class Tiers
         }
     }
     /**
-     * Reprezentuje stopień EGO, wykorzystywane w rekordzie {@link dataProcessing.webScraper.FormatedScraperData.EGOData}
+     * Reprezentuje stopień EGO, wykorzystywane w rekordzie {@link ScraperDataDTOs.EGOData}
      */
     public enum ThreatLevel
     {

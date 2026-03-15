@@ -1,11 +1,13 @@
-package dataProcessing.webScraper;
+package dataProcessing;
+
+import dataProcessing.webScraper.enums.Tiers;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class RecordBuilders
+public class DTOBuilders
 {
     public static abstract class BaseEquippableBuilder<T extends BaseEquippableBuilder<T>>
     {
@@ -14,8 +16,8 @@ public class RecordBuilders
         protected String season;
         protected String releaseDate;
 
-        protected List<FormatedScraperData.Ability> abilities = new ArrayList<>();
-        protected List<FormatedScraperData.Passive> combatPassives = new ArrayList<>();
+        protected List<ScraperDataDTOs.Ability> abilities = new ArrayList<>();
+        protected List<ScraperDataDTOs.Passive> combatPassives = new ArrayList<>();
         protected Map<String, Double> resistances = new HashMap<>();
 
         protected abstract T self();
@@ -44,13 +46,13 @@ public class RecordBuilders
             return self();
         }
 
-        public T addAbility(FormatedScraperData.Ability ability)
+        public T addAbility(ScraperDataDTOs.Ability ability)
         {
             this.abilities.add(ability);
             return self();
         }
 
-        public T addCombatPassive(FormatedScraperData.Passive combatPassive)
+        public T addCombatPassive(ScraperDataDTOs.Passive combatPassive)
         {
             this.combatPassives.add(combatPassive);
             return self();
@@ -71,7 +73,7 @@ public class RecordBuilders
         private int health;
         private String speed;
         private int defenseLevel;
-        private FormatedScraperData.Passive supportPassive;
+        private ScraperDataDTOs.Passive supportPassive;
 
         private final List<String> traits = new ArrayList<>();
         private final List<String> staggerThresholds = new ArrayList<>();
@@ -121,7 +123,7 @@ public class RecordBuilders
             return this;
         }
 
-        public IDDataBuilder setSupportPassive(FormatedScraperData.Passive supportPassive)
+        public IDDataBuilder setSupportPassive(ScraperDataDTOs.Passive supportPassive)
         {
             this.supportPassive = supportPassive;
             return this;
@@ -151,9 +153,9 @@ public class RecordBuilders
             return this;
         }
 
-        public FormatedScraperData.IDData buildIDData()
+        public ScraperDataDTOs.IDData buildIDData()
         {
-            return new FormatedScraperData.IDData(
+            return new ScraperDataDTOs.IDData(
                     name, portraitFile, rarity, world, worldFile, season, releaseDate,
                     health, speed, defenseLevel, supportPassive, traits,
                     staggerThresholds, resistances, positiveSanityEffects, negativeSanityEffects,
@@ -220,9 +222,9 @@ public class RecordBuilders
             return this;
         }
 
-        public FormatedScraperData.EGOData buildEGOData()
+        public ScraperDataDTOs.EGOData buildEGOData()
         {
-            return new FormatedScraperData.EGOData(
+            return new ScraperDataDTOs.EGOData(
                     name, portraitFile, threatLevel, season, releaseDate, sinAffinity, abnormality,
                     awakenSanityCost, corrosionSanityCost, resistances, awakenSinCost, corrosionSinCost,
                     abilities, combatPassives
@@ -318,9 +320,9 @@ public class RecordBuilders
             return this;
         }
 
-        public FormatedScraperData.Ability buildAbilityData()
+        public ScraperDataDTOs.Ability buildAbilityData()
         {
-            return new FormatedScraperData.Ability(
+            return new ScraperDataDTOs.Ability(
                     skillSlot, abilityName, sinAffinity, skillIconFile, attackWeight, basePower,
                     damageType, coinPower, coinCount, offenseLevel, baseEffects, coinEffects
             );
