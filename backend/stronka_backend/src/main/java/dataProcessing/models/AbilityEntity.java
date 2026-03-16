@@ -62,5 +62,21 @@ public class AbilityEntity
 
     // Tu akurat mogę zrobić ManyToMany z racji, że wiele umiejętności może mieć wiele status-effect'ów
     @ManyToMany
+    // Oznaczenie tworzące trzecią tabelę pośrednią
+    @JoinTable(
+            // Nazwa naszej nowej tabeli
+            name ="ability_status-effects",
+            // Kolumna wskazująca na nas, np. nasze ID
+            joinColumns = @JoinColumn(name = "ability_id"),
+            // Kolumna wskazująca na ID encji, która zbiera 'nas'
+            inverseJoinColumns = @JoinColumn(name = "status_effect_id")
+    )
     private List<StatusEffectEntity> statusEffects = new ArrayList<>();
+
+    // @ManyToOne to odzwierciedlenie kolumny w bazie
+    // FetchType.Lazy to parametr fetch, który oznacza, że dane będą pobrane tylko, gdy je wywołamy, np. poprzez foo.getBar
+    @ManyToOne(fetch = FetchType.LAZY)
+    // JoinColumn określa nazwę kolumny z kluczem obcym
+    @JoinColumn(name = "ego_name")
+    private EGOEntity ego;
 }

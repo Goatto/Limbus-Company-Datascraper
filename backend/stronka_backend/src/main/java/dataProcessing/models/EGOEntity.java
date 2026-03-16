@@ -1,5 +1,6 @@
 package dataProcessing.models;
 
+import dataProcessing.ScraperDataDTOs;
 import dataProcessing.webScraper.enums.Tiers;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -23,8 +24,11 @@ public class EGOEntity
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "icon", nullable = false)
+    @Column(name = "portrait_file", nullable = true)
     private String portraitFile;
+
+    @Column(name = "corroded_portrait_file", nullable = true)
+    private String corrodedPortraitFile;
 
     @Column(name = "tier", nullable = false)
     private Tiers.ThreatLevel threatLevel;
@@ -59,14 +63,26 @@ public class EGOEntity
     @Column(name = "corrosion_sin_cost", nullable = true)
     private Map<String, Integer> corrosionSinCost = new HashMap<>();
 
-    /*
-    @OneToMany(mappedBy = "ability")
-    @Column(name = "abilities", nullable = true)
+    // Wirtualny widok wskazujący na wszystkie klucze obce wskazujące na nas
+    @OneToMany(mappedBy = "ego", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AbilityEntity> abilities = new ArrayList<>();
 
+    /*
     @OneToMany(mappedBy = "passive")
     @Column(name = "passives", nullable = true)
     private List<PassiveEntity> combatPassive = new ArrayList<>();
     */
+
+    public void addAbility(AbilityEntity ability)
+    {
+        abilities.add(ability);
+        ability.setEgo(this);
+    }
+
+    public void removeAbility(AbilityEntity ability)
+    {
+        abilities.remove(ability);
+        ability.setEgo(null);
+    }
 }
 

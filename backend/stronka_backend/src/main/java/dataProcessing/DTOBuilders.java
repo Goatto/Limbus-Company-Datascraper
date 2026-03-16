@@ -166,6 +166,7 @@ public class DTOBuilders
 
     public static class EGODataBuilder extends BaseEquippableBuilder<EGODataBuilder>
     {
+        private String corrodedPortraitFile;
         private Tiers.ThreatLevel threatLevel;
         private String sinAffinity;
         private String abnormality;
@@ -177,6 +178,12 @@ public class DTOBuilders
 
         @Override
         protected EGODataBuilder self() {
+            return this;
+        }
+
+        public EGODataBuilder setCorrededPortraitFile(String corrodedPortraitFile)
+        {
+            this.corrodedPortraitFile = corrodedPortraitFile;
             return this;
         }
 
@@ -225,7 +232,7 @@ public class DTOBuilders
         public ScraperDataDTOs.EGOData buildEGOData()
         {
             return new ScraperDataDTOs.EGOData(
-                    name, portraitFile, threatLevel, season, releaseDate, sinAffinity, abnormality,
+                    name, portraitFile, corrodedPortraitFile, threatLevel, season, releaseDate, sinAffinity, abnormality,
                     awakenSanityCost, corrosionSanityCost, resistances, awakenSinCost, corrosionSinCost,
                     abilities, combatPassives
             );

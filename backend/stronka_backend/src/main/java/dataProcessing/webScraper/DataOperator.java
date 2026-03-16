@@ -74,7 +74,12 @@ public class DataOperator
             {
                 DTOBuilders.IDDataBuilder builder = new DTOBuilders.IDDataBuilder();
 
-                WikimediaScraper.scrapeGeneralIDData(htmlContent, builder);
+                // Jeżeli w tym miejscu otrzymamy null, strona nie jest skończona, i próba wyjęcia z jej wartości
+                // wyrzuci program
+                if(WikimediaScraper.scrapeGeneralIDData(htmlContent, builder) == null)
+                {
+                    break;
+                }
                 WikimediaScraper.scrapeSanityData(htmlContent, builder);
                 wikimediaScraper.scrapeIDAbilityData(htmlContent);
                 WikimediaScraper.scrapePassiveData(htmlContent, builder);
@@ -83,7 +88,11 @@ public class DataOperator
             {
                 DTOBuilders.EGODataBuilder builder = new DTOBuilders.EGODataBuilder();
 
-                WikimediaScraper.scrapeEGOAbilities(htmlContent, builder);
+                // TODO podobne sprawdzenie przed niedokończoną stroną zrobić tu
+                if(wikimediaScraper.scrapeEGOAbilities(htmlContent, builder) == null)
+                {
+                    break;
+                }
                 WikimediaScraper.scrapePassiveData(htmlContent, builder);
             }
             break;

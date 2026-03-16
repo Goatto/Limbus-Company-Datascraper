@@ -3,6 +3,7 @@ package dataProcessing.services;
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.AbilityEntity;
 import dataProcessing.repositories.AbilityRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,7 +16,9 @@ public class AbilityService
         this.abilityRepository = abilityRepository;
     }
 
-    public void saveNewAbility(ScraperDataDTOs.Ability newAbility)
+    // @Transactional - Jeżeli cały zapis nie odbędzie się poprawnie, nic nie zostanie zapisane
+    @Transactional
+    public AbilityEntity saveNewAbility(ScraperDataDTOs.Ability newAbility)
     {
         AbilityEntity abilityEntity = new AbilityEntity();
 
@@ -32,6 +35,6 @@ public class AbilityService
         abilityEntity.setBaseEffects(newAbility.baseEffects());
         abilityEntity.setCoinEffects(newAbility.coinEffects());
 
-        abilityRepository.save(abilityEntity);
+        return abilityRepository.save(abilityEntity);
     }
 }

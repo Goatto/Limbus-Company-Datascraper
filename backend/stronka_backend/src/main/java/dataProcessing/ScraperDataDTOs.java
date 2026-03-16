@@ -74,6 +74,7 @@ public class ScraperDataDTOs
      * @param name Nazwa Ego
      // * @param sinnerName Nazwa sinnera, który posiada te EGO
      * @param portraitFile Nazwa pliku zawierająca portret EGO
+     * @param corrodedPortraitFile
      * @param threatLevel Poziom zagrożenia EGO (ie. w jakim slot'cie jest wykorzystany w grze)
      * @param season Sezon wydania ID
      * @param releaseDate Data wydania ID
@@ -92,6 +93,7 @@ public class ScraperDataDTOs
         // TODO sprawdzić czy to ma sens
         // String sinnerName,
         String portraitFile,
+        String corrodedPortraitFile,
         Tiers.ThreatLevel threatLevel,
         String season,
         String releaseDate,
