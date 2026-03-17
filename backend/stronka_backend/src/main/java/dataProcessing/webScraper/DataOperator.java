@@ -1,60 +1,31 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.DTOBuilders;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class DataParserFunctions
+@Component
+public class DataOperator
 {
+    private final WikimediaScraper wikimediaScraper;
     private static final int retryCount = 3;
-    static void main(String[] args)
+
+    public DataOperator(WikimediaScraper wikimediaScraper)
     {
-        try
-        {
-            // Jeden do testowania pojedynczej strony, drugi do zbierania linków do pojedynczych stron
-            // Struktura stronek do EGO i ID jest bardzo podobna, ale będę się bawił ze status effectami
-            // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
-            // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
-            List<String> urls = List.of(
-                    ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
-                    ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
-            // List<String> url = List.of("https://limbuscompany.wiki.gg/wiki/LCB_Sinner_Yi_Sang");
-
-            List<String> urlLists = linkScraper(urls);
-            // Ręcznie dodajemy Status_Effect, bo czemu nie
-            urlLists.add("https://limbuscompany.wiki.gg/wiki/Status_Effects");
-            for(String urlDocument : urlLists)
-            {
-                Document selectedPage = scrapeData(urlDocument);
-                if (selectedPage != null)
-                {
-                        parseData(selectedPage);
-                }
-                // Jak za szybko będziemy przechodzić, to otrzymamy status: '429 Too Many Requests'
-                try
-                {
-                    Thread.sleep(3000);
-                }
-                catch (InterruptedException _) {}
-            }
-
-        }
-        catch (Throwable t)
-        {
-            // Później jakiś lepszy debugging zrobię
-            t.printStackTrace();
-        }
+        this.wikimediaScraper = wikimediaScraper;
     }
 
     // Na razie do sprawdzenia jak zbiera się linki, później będę musiał to inaczej zrobić z racji,
     // że każda stronka ma inną strukturę więc parser będzie musiał brać to pod uwagę
-    private static List<String> linkScraper(List<String> categories)
+    static List<String> linkScraper(List<String> categories)
     {
         List<String> outputLinks = new ArrayList<>();
         // Whitelist z racji, że w nazwach ID TAKŻE mamy nazwy jednostki, więc będzie mniej brudu
@@ -92,43 +63,43 @@ public class DataParserFunctions
         return outputLinks;
     }
 
-    private static void parseData(Document htmlContent)
+    void parseData(Document htmlContent)
     {
-        // Wyrzucić tooltipy z samego początku
-        htmlContent.select(".tooltip-contents").remove();
         // Już sprawdzamy przed wywołaniem czy htmlContent jest null
         Elements categories = htmlContent.select("#catlinks .mw-normal-catlinks ul li");
         for(Element category : categories)
         {
-            if(category.text().equals("E.G.O") || category.text().equals("Identities"))
+            String categoryText = category.text();
+            if (categoryText.equals("Identities"))
             {
-                RecordBuilders.IDDataBuilder builder = new RecordBuilders.IDDataBuilder();
-                WikimediaScraperFunctions.scrapeGeneralIDData(htmlContent, builder);
+                DTOBuilders.IDDataBuilder builder = new DTOBuilders.IDDataBuilder();
 
-                if (category.text().equals("Identities"))
+                // Jeżeli w tym miejscu otrzymamy null, strona nie jest skończona, i próba wyjęcia z jej wartości
+                // wyrzuci program
+                if(WikimediaScraper.scrapeGeneralIDData(htmlContent, builder) == null)
                 {
-                    // Tylko ID mają sanity
-                    // TODO Buildery tutaj są temp, tak by program się nie wykrzaczał
-                    WikimediaScraperFunctions.scrapeSanityData(htmlContent, new RecordBuilders.IDDataBuilder());
-                    // E.G.O przechowują umiejętności i pasywki w inny sposób
-                    WikimediaScraperFunctions.scrapeIDAbilityData(htmlContent);
+                    break;
                 }
-                else if(category.text().equals("E.G.O"))
-                {
-                    WikimediaScraperFunctions.scrapeEGOAbilities(htmlContent, new RecordBuilders.EGODataBuilder());
-                }
-                WikimediaScraperFunctions.scrapePassiveData(htmlContent, new RecordBuilders.EGODataBuilder());
+                WikimediaScraper.scrapeSanityData(htmlContent, builder);
+                wikimediaScraper.scrapeIDAbilityData(htmlContent);
+                WikimediaScraper.scrapePassiveData(htmlContent, builder);
             }
-            if(category.text().equals("Status Effect Pages"))
+            else if (categoryText.equals("E.G.O"))
             {
-                System.out.println("STATUS EFFECT");
+                DTOBuilders.EGODataBuilder builder = new DTOBuilders.EGODataBuilder();
+
+                // TODO podobne sprawdzenie przed niedokończoną stroną zrobić tu
+                if(wikimediaScraper.scrapeEGOAbilities(htmlContent, builder) == null)
+                {
+                    break;
+                }
+                WikimediaScraper.scrapePassiveData(htmlContent, builder);
             }
             break;
         }
-        // Sprawdzamy, która ze pod-stronek to jest
     }
 
-    private static Document scrapeData(String url)
+    static Document scrapeData(String url)
     {
         Map<String, String> jsoupHeaders = Map.of(
                 // Nasz userAgent
@@ -151,6 +122,8 @@ public class DataParserFunctions
                         .headers(jsoupHeaders)
                         .get();
                 System.out.println("Scraped " + url);
+                // TODO Nie wiem czy to nie może przypadkiem jakiś problemów sprawić, więc sobie zaznaczam na później
+                document.select(".tooltip-contents").remove();
                 return document;
             }
             catch (IOException e)

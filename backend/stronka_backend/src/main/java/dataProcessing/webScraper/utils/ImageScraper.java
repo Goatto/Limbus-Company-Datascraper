@@ -1,4 +1,4 @@
-package dataProcessing.webScraper;
+package dataProcessing.webScraper.utils;
 
 import org.jsoup.nodes.Element;
 
@@ -15,7 +15,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 public class ImageScraper
@@ -32,20 +31,29 @@ public class ImageScraper
             // Automatycznie przechodzi z http na https, jeżeli może
             "Upgrade-Insecure-Requests", "1");
 
+    // Lista plików, przez które już przeszliśmy, i nie chcemy pobierać ponownie
     private static final Set<String> checkedFiles = new HashSet<>();
-    private static final String storagePath = "data/images";
+    private static final String storagePath = "data/images/";
+    // Pusty klient do sprawdzania statusu
     private static final HttpClient httpClient = HttpClient.newHttpClient();
 
+    /**
+     * Metoda odpowiednia za zebranie URL do obrazu z danego Elementu, jak i przekazaniem tej wartości do {@link #downloadScrapedImageURL(String, String)}
+     * która jest odpowiedzialna za pobranie obrazu na komputer.
+     * @param imgElement Element, który zawiera obrazek, którego URL chcemy zebrać.
+     * @return Nazwę pliku obrazka, który właśnie został zapisany na komputerze.
+     */
     public static String scrapeImageURL(Element imgElement)
     {
+        // Upewniamy się, że nie otrzymujemy nulla
         if(imgElement == null)
         {
-            System.out.println("VALUE PASSED IN 'scrapeImageURL' IS NULL!!!!");
+            System.out.println("VALUE PASSED IN scrapeImageURL IS NULL!!!!");
+            return null;
         }
 
-        String imgURL = Optional.ofNullable(imgElement)
-                .map(attribute -> attribute.attr("abs:src"))
-                .orElse("NO IMAGE URL!!!");
+        String imgURL = imgElement.attr("abs:src");
+
         // Pobieranie obrazów w pełnej rozdzielczości
         if (imgURL.contains("/thumb/")) {
             imgURL = imgURL.replace("/thumb/", "/");
@@ -53,23 +61,28 @@ public class ImageScraper
         }
 
         String fileName = imgURL.substring(imgURL.lastIndexOf('/') + 1);
-        // Znaki po jak i samo ? uniemożliwiają pobieranie
-        fileName = fileName.replace("\\d+\\-", "");
+        // TODO Odkomentować jeżeli pojawią się jakieś problemy
+        // fileName = fileName.replaceAll("\\d+-", "");
+        // Znaki po oraz samo ? uniemożliwiają pobieranie, więc się ich pozbywamy
         if (fileName.contains("?"))
         {
             fileName = fileName.substring(0, fileName.indexOf("?"));
         }
 
+        // Jeżeli w liście sprawdzonych plików mamy już obecny plik, przerywamy
         if(checkedFiles.contains(fileName))
         {
             return null;
         }
+
         File downloadedFile = new File(storagePath + fileName);
+        // Jeżeli w pobranych plikach mamy już obecny plik, dodajemy go do listy sprawdzonych i przerywamy
         if(downloadedFile.exists())
         {
             checkedFiles.add(fileName);
             return null;
         }
+
         // add zwraca true, tylko jeśli doszło do dodania nowego elementu
         if(!imgURL.isEmpty() && checkedFiles.add(imgURL))
         {
@@ -79,30 +92,41 @@ public class ImageScraper
         return fileName;
     }
 
-    // TODO Jeżeli mam być szczery to do końca nie wiem jak wszystko tu działa, zwyklę sprawdziłem na internecie jak się to robi
-    // TODO Więc się muszę tego ewentualnie nauczyć
+    /**
+     * Metoda prywatna odpowiednia za pobranie pliku w {@link #scrapeImageURL(Element)}.
+     * @param imgURL URL do pliku, który chcemy pobrać.
+     * @param fileName Nazwa, pod którą chcemy zapisać pobrany plik.
+     */
     private static void downloadScrapedImageURL(String imgURL, String fileName)
     {
-        // Czy folder istnieje?
         try
         {
+            // Sprawdzamy, czy folder istnieje, jeżeli nie to go tworzymy
             Path directory = Paths.get(storagePath);
             if(Files.notExists(directory))
             {
                 Files.createDirectories(directory);
             }
+            // Łączy ścieżkę folderu do zapisu wraz z nazwą pliku, by otrzymać pełną ścieżke do zapisu
+            // Ta metoda, działa pomiędzy różnymi systemami, więc nie musimy się martwić czy mamy dać /, czy \
             Path targetPath = directory.resolve(fileName);
 
+            // Wykorzystujemy wbudowanego buildera, by stworzyć prosty request
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    // Zamienia tekst z imgURL na obiekt, z którego faktycznie operujemy nad zasobem
                     .uri(URI.create(imgURL))
+                    // Mówimy o tym, że chcemy pobrać zasób
                     .GET();
 
+            // Dodajemy header do naszego requesta
             httpHeaders.forEach(requestBuilder::header);
-
+            // I w końcu budujemy cały request
             HttpRequest request = requestBuilder.build();
-
+            // Sprawdzamy, czy możemy się połączyć
             HttpResponse<InputStream> httpResponse = httpClient.send(request,
+                    // Nie 'dotykamy' pliku, sprawdzamy tylko nagłówki i.e. czy istnieje
                     HttpResponse.BodyHandlers.ofInputStream());
+            // Kod 200 to 'Ok' oznacza to, że udało nam się przejść przez zasób
             if(httpResponse.statusCode() == 200)
             {
                 Files.copy(httpResponse.body(), targetPath, StandardCopyOption.REPLACE_EXISTING);
