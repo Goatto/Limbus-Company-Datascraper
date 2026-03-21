@@ -38,6 +38,7 @@ public class EGOService
         egoEntity.setAwakenSinCost(newEGO.awakenSinCost());
         egoEntity.setCorrosionSinCost(newEGO.corrosionSinCost());
 
+        // TODO zamienić to na dodawanie przez identyfikatory
         for(ScraperDataDTOs.Ability abilityDTO : newEGO.abilities())
         {
             AbilityEntity savedAbility = abilityService.saveNewAbility(abilityDTO);
