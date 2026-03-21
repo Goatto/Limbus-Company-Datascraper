@@ -173,8 +173,8 @@ public class DTOBuilders
         private int awakenSanityCost;
         private int corrosionSanityCost;
 
-        private final Map<String, Integer> awakenSinCost = new HashMap<>();
-        private final Map<String, Integer> corrosionSinCost = new HashMap<>();
+        private Map<String, Integer> awakenSinCost = new HashMap<>();
+        private Map<String, Integer> corrosionSinCost = new HashMap<>();
 
         @Override
         protected EGODataBuilder self() {
@@ -217,15 +217,15 @@ public class DTOBuilders
             return this;
         }
 
-        public EGODataBuilder addAwakenSinCost(String sinAffinity, Integer sinCount)
+        public EGODataBuilder setAwakenSinCost(Map<String, Integer> awakenSinCost)
         {
-            this.awakenSinCost.put(sinAffinity, sinCount);
+            this.awakenSinCost = awakenSinCost;
             return this;
         }
 
-        public EGODataBuilder addCorrosionSinCost(String sinAffinity, Integer sinCount)
+        public EGODataBuilder setCorrosionSinCost(Map<String, Integer> corrosionSinCost)
         {
-            this.corrosionSinCost.put(sinAffinity, sinCount);
+            this.corrosionSinCost = corrosionSinCost;
             return this;
         }
 

@@ -134,6 +134,7 @@ public class WikimediaScraper
         return builder;
     }
 
+    // TODO Stworzyć osobnę DTO dla sanity
     public static DTOBuilders.IDDataBuilder scrapeSanityData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         Elements sanitySelector = htmlContent.select("#Sanity-0 table tr td div");
@@ -236,7 +237,7 @@ public class WikimediaScraper
             Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
 
             for(Element divPassiveContainer : divPassiveContainers)
-            {;
+            {
                 ScraperDataDTOs.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
                 switch(passiveCategory)
                 {
@@ -268,20 +269,22 @@ public class WikimediaScraper
     // TODO to NAPEWNO rozbić na mniejsze funkcje, absolutnie mało czytelne i chaotycznie napisane
     public Object scrapeEGOAbilities(Document htmlContent, DTOBuilders.EGODataBuilder builder)
     {
-        // FIXME wyrzuca się na https://limbuscompany.wiki.gg/wiki/Great_Trichiliocosm_%E4%B8%89%E5%8D%83%E5%A4%A7%E4%B8%96%E7%95%8C_Ry%C5%8Dsh%C5%AB
-        String title = htmlContent.selectFirst(".mw-page-title-main").text();
+        String title = Optional.of(htmlContent)
+                .map(content -> content.selectFirst(".mw-page-title-main"))
+                .map(Element::text)
+                .orElse("BRAK TYTUŁU");
+
         System.out.println(title);
         builder.setName(title);
         // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
         Elements genericRows;
         String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
-        Element genericInformation = Optional.ofNullable(htmlContent)
+        Element genericInformation = Optional.of(htmlContent)
                 .map(content -> content.selectFirst(".mw-body-content"))
                 .orElse(new Element("div"));
 
-        scrapeEgoGenericInformation(builder, genericInformation);
         boolean hasNoCorrosion = false;
-        Element genericInformationCost = null;
+        Element genericInformationCost;
 
         Element overclockCost = genericInformation.selectFirst("b:contains(Cost (Overclock))");
 
@@ -303,6 +306,7 @@ public class WikimediaScraper
             }
         }
 
+        scrapeEgoGenericInformation(builder, genericInformation, hasNoCorrosion);
 
         genericRows = Optional.ofNullable(genericInformationCost)
                 .map(element -> element.getElementsByTag("tr"))
@@ -331,57 +335,12 @@ public class WikimediaScraper
             }
             if(headerRow.text().contains("Sanity"))
             {
-                int sanityValue = Integer.parseInt(dataRow.text());
-                if(isOverclocked)
-                {
-                    System.out.println("Corrosion sanity cost: " + sanityValue);
-                    builder.setCorrosionSanityCost(sanityValue);
-                }
-                else
-                {
-                    System.out.println("Awakening sanity cost: " + sanityValue);
-                    builder.setAwakenSanityCost(sanityValue);
-                }
+                scrapeSanityCost(builder, dataRow, isOverclocked);
             }
-            else if(headerRow.text().contains("E.G.O Resources"))
+            // Edge-case 'Affinity' dla base EGO
+            else if(headerRow.text().contains("E.G.O Resources") || headerRow.text().contains("Affinity"))
             {
-                StringBuilder resourcesEGO = new StringBuilder();
-
-                // TODO dodać koszt
-                Map<String, Integer> useCost = new HashMap<>();
-                String sinType;
-                String sinText;
-                for(Node dataNode : dataRow.childNodes())
-                {
-                    if(dataNode instanceof Element nodeElement)
-                    {
-                        if(nodeElement.tagName().equals("img"))
-                        {
-                            sinType = nodeElement.attr("alt").replace(".png", "");
-                            resourcesEGO.append("[").append(sinType).append("]");
-                        }
-                        else if(nodeElement.tagName().equals("span"))
-                        {
-                            resourcesEGO.append(nodeElement.text().trim()).append(" ");
-                        }
-                    }
-                    else if(dataNode instanceof TextNode)
-                    {
-                        sinText = ((TextNode) dataNode).text().trim();
-                        if(!sinText.isEmpty())
-                        {
-                            resourcesEGO.append(sinText).append(" ");
-                        }
-                    }
-                }
-                if(isOverclocked)
-                {
-                    System.out.println("Corrossion E.G.O Resources: " + resourcesEGO);
-                }
-                else
-                {
-                    System.out.println("Awakening E.G.O Resources: " + resourcesEGO);
-                }
+                scrapeEGOResourceCost(builder, dataRow, isOverclocked);
             }
         }
         Element genericInformationResistances = Optional.ofNullable(
@@ -399,12 +358,12 @@ public class WikimediaScraper
 
         if(!hasNoCorrosion)
         {
-            awakeningInformation = Optional.ofNullable(htmlContent)
+            awakeningInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
 
-            awakeningPortrait = Optional.ofNullable(htmlContent)
+            awakeningPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:left] img[alt$=.png]"))
                     .orElse(new Element("div"));
@@ -414,35 +373,33 @@ public class WikimediaScraper
 
 
 
-            Element corrosionInformation = Optional.ofNullable(htmlContent)
+            Element corrosionInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
 
-            // FIXME portret dla korozji jest zawsze null
-            Element corrosionPortrait = Optional.ofNullable(htmlContent)
+            Element corrosionPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:left] img[alt$=.png]"))
                     .orElse(new Element("div"));
 
             abilityBuilder.setSkillSlot("2");
+            scrapeImageURL(corrosionPortrait);
             builder.setCorrededPortraitFile(corrosionPortrait.attr("alt"));
             processSingleAbility(corrosionInformation, builder, abilityBuilder);
         }
         else
         {
-            awakeningInformation = Optional.ofNullable(htmlContent)
+            awakeningInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            awakeningPortrait = Optional.ofNullable(htmlContent)
+
+            awakeningPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:left] img[alt$=.png]"))
                     .orElse(new Element("div"));
 
-            builder.setReleaseDate("Day 1");
-            builder.setSeason("Season 0");
-            builder.setAbnormality("Sinner E.G.O");
             builder.setPortraitFile(awakeningPortrait.attr("alt"));
 
             processSingleAbility(awakeningInformation, builder, abilityBuilder);
@@ -451,7 +408,66 @@ public class WikimediaScraper
         return true;
     }
 
-    private static void scrapeEgoGenericInformation(DTOBuilders.EGODataBuilder builder, Element genericInformation)
+    private static void scrapeSanityCost(DTOBuilders.EGODataBuilder builder, Element dataRow, boolean isOverclocked) {
+        int sanityValue = Integer.parseInt(dataRow.text());
+        if(isOverclocked)
+        {
+            System.out.println("Corrosion sanity cost: " + sanityValue);
+            builder.setCorrosionSanityCost(sanityValue);
+        }
+        else
+        {
+            System.out.println("Awakening sanity cost: " + sanityValue);
+            builder.setAwakenSanityCost(sanityValue);
+        }
+    }
+
+    private static void scrapeEGOResourceCost(DTOBuilders.EGODataBuilder builder, Element dataRow, boolean isOverclocked)
+    {
+        StringBuilder resourcesEGO = new StringBuilder();
+
+        Map<String, Integer> useCost = new LinkedHashMap<>();
+        String sinType = "";
+        String sinCost;
+        for(Node dataNode : dataRow.childNodes())
+        {
+            sinCost = "";
+            if(dataNode instanceof Element nodeElement)
+            {
+                if(nodeElement.tagName().equals("img"))
+                {
+                    sinType = nodeElement.attr("alt");
+                    resourcesEGO.append("[").append(sinType).append("]").append(" ");
+                }
+                else if(nodeElement.tagName().equals("span"))
+                {
+                    sinCost = nodeElement.text().replaceAll("\\D", "");
+                }
+            }
+            else if(dataNode instanceof TextNode)
+            {
+                sinCost = ((TextNode) dataNode).text().replaceAll("\\D", "");
+            }
+            if(!sinCost.isEmpty())
+            {
+                resourcesEGO.append(sinCost).append(" ");
+                useCost.put(sinType, Integer.parseInt(sinCost));
+            }
+        }
+        if(isOverclocked)
+        {
+            System.out.println("Corrosion E.G.O Resources: " + resourcesEGO.toString().trim());
+            builder.setCorrosionSinCost(useCost);
+        }
+        else
+        {
+            System.out.println("Awakening E.G.O Resources: " + resourcesEGO.toString().trim());
+            builder.setAwakenSinCost(useCost);
+        }
+    }
+
+    // TODO dodać obsługiwanie hasNoCorrosion
+    private static void scrapeEgoGenericInformation(DTOBuilders.EGODataBuilder builder, Element genericInformation, boolean hasNoCorrosion)
     {
         Elements genericRows;
         Element genericInformationInfo = Optional.ofNullable(
@@ -459,43 +475,60 @@ public class WikimediaScraper
                     .map(container -> container.closest("tbody"))
                     .orElse(new Element("div"));
         genericRows = genericInformationInfo.getElementsByTag("tr");
+
         for(Element row : genericRows)
         {
             Elements specifiedRow = row.select("td");
-            if (!row.text().isEmpty())
+            if(row.text().trim().isEmpty())
             {
-                if(specifiedRow.selectFirst("td:contains(Risk Level)") != null)
+                continue;
+            }
+            if(specifiedRow.selectFirst("td:contains(Risk Level)") != null)
+            {
+                if(hasNoCorrosion)
                 {
-                    String riskLevel = Optional.ofNullable(
-                                    specifiedRow.get(1).selectFirst("img"))
-                            .map(img -> img.attr("alt"))
-                            .orElse("Image not found");
+                    String riskLevel = extractAltFromSpecifiedRow(specifiedRow, 3);
                     builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
                     System.out.println("Risk Level: " + riskLevel);
 
-                    String season = specifiedRow.get(3).text();
+                    String season = "Season 0";
                     builder.setSeason(season);
                     System.out.println("Season: " + season);
-                }
-                if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
-                {
-                    String affinity = Optional.ofNullable(
-                                    specifiedRow.get(1).selectFirst("img"))
-                            .map(img -> img.attr("alt"))
-                            .orElse("Image not found");
+
+                    String affinity = extractAltFromSpecifiedRow(specifiedRow, 1);
                     builder.setSinAffinity(affinity);
                     System.out.println("Affinity: " + affinity);
 
-                    String releaseDate = specifiedRow.get(3).text();
-                    builder.setReleaseDate(releaseDate);
-                    System.out.println("Release: " + releaseDate);
+                    String release = "Day 1";
+                    builder.setReleaseDate(release);
+                    System.out.println("Release: " + release);
+
+                    break;
                 }
-                else if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
-                {
-                    String abnormality = specifiedRow.get(1).text();
-                    builder.setAbnormality(abnormality);
-                    System.out.println("Abnormality: " + abnormality);
-                }
+                String riskLevel = extractAltFromSpecifiedRow(specifiedRow, 1);
+                builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
+                System.out.println("Risk Level: " + riskLevel);
+
+                String season = extractTextFromSpecifiedRow(specifiedRow,3);
+                builder.setSeason(season);
+                System.out.println("Season: " + season);
+            }
+            else if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
+            {
+                String affinity = extractAltFromSpecifiedRow(specifiedRow, 1);
+
+                builder.setSinAffinity(affinity);
+                System.out.println("Affinity: " + affinity);
+
+                String releaseDate = extractTextFromSpecifiedRow(specifiedRow,3);
+                builder.setReleaseDate(releaseDate);
+                System.out.println("Release: " + releaseDate);
+            }
+            else if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
+            {
+                String abnormality = extractTextFromSpecifiedRow(specifiedRow, 1);
+                builder.setAbnormality(abnormality);
+                System.out.println("Abnormality: " + abnormality);
             }
         }
     }
@@ -651,5 +684,25 @@ public class WikimediaScraper
         ScraperDataDTOs.Ability builtAbility = abilityBuilder.buildAbilityData();
         builder.addAbility(builtAbility);
         return builtAbility;
+    }
+
+    private static String extractAltFromSpecifiedRow(Elements columns, int columnIndex)
+    {
+        if(columnIndex >= columns.size())
+        {
+            return "NO IMAGE!";
+        }
+        Element img = columns.get(columnIndex).selectFirst("img");
+        return img != null ? img.attr("alt") : "NO IMAGE!";
+    }
+
+    private static String extractTextFromSpecifiedRow(Elements columns, int columnIndex)
+    {
+        if(columnIndex >= columns.size())
+        {
+            return "NO TEXT!";
+        }
+        String text = columns.get(columnIndex).text().trim();
+        return !text.isEmpty() ? text : "NO TEXT!";
     }
 }

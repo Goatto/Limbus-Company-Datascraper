@@ -26,6 +26,7 @@ public class EGOService
 
         egoEntity.setName(newEGO.name());
         egoEntity.setPortraitFile(newEGO.portraitFile());
+        egoEntity.setCorrodedPortraitFile(newEGO.corrodedPortraitFile());
         egoEntity.setThreatLevel(newEGO.threatLevel());
         egoEntity.setSeason(newEGO.season());
         egoEntity.setReleaseDate(newEGO.releaseDate());
