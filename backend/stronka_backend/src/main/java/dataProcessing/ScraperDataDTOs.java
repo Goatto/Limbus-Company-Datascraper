@@ -5,6 +5,7 @@ import dataProcessing.webScraper.enums.Tiers;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class ScraperDataDTOs
 {
@@ -91,7 +92,7 @@ public class ScraperDataDTOs
     public record EGOData(
         String name,
         // TODO sprawdzić czy to ma sens
-        // String sinnerName,
+        String sinnerName,
         String portraitFile,
         String corrodedPortraitFile,
         Tiers.ThreatLevel threatLevel,
@@ -105,8 +106,8 @@ public class ScraperDataDTOs
         Map<String, Double> resistances,
         Map<String, Integer> awakenSinCost,
         Map<String, Integer> corrosionSinCost,
-        List<Ability> abilities,
-        List<Passive> combatPassives
+        List<UUID> abilities,
+        List<UUID> combatPassives
 
 
     ){}
@@ -140,8 +141,8 @@ public class ScraperDataDTOs
             String offenseLevel,
 
             List<String> baseEffects,
-            Map<String, List<String>> coinEffects
-            // Set<StatusEffect> statusEffects
+            Map<String, List<String>> coinEffects,
+            Set<String> statusEffects
     ){}
 
     /**
@@ -155,8 +156,8 @@ public class ScraperDataDTOs
             String passiveName,
             String costType,
             Map<String, Integer> cost,
-            List<String> description
-            // Set<StatusEffect> statusEffects
+            List<String> description,
+            Set<String> statusEffects
     ){}
 
     /**
@@ -164,14 +165,11 @@ public class ScraperDataDTOs
      * @param name Nazwa status-effect'u
      * @param icon Nazwa pliku zawierająca ikonke status-effect'u
      * @param description Opis status-effect'u (i.e. co on robi)
-     * @param relatedEffects Nazwy innych status-effect'ów znajdujących się w opisie
      */
     public record StatusEffect(
             String name,
             String icon,
-            List<String> description,
-            // TODO to jest kompletnie niepotrzebne, i tak nie będę wyświetlał ikonek z tego
-            Set<String> relatedEffects
+            List<String> description
     ){}
 
     // TODO ewentualnie też później pomyśl o stworzeniem rekordu/encji tylko dla sanity effectów,

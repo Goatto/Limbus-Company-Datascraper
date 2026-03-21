@@ -19,6 +19,14 @@ import static dataProcessing.webScraper.utils.ImageScraper.scrapeImageURL;
 @Component
 public class WikimediaScraper
 {
+    static Set<String> iconWhiteList = Set.of("Wrath1.png","Wrath2.png","Wrath3.png",
+            "Lust1.png", "Lust2.png", "Lust3.png",
+            "Sloth1.png", "Sloth2.png", "Sloth3.png",
+            "Gluttony1.png", "Gluttony2.png", "Gluttony3.png",
+            "Gloom1.png", "Gloom2.png", "Gloom3.png",
+            "Pride1.png", "Pride2.png", "Pride3.png",
+            "Envy1.png", "Envy2.png", "Envy3.png");
+
     private final AbilityService abilityService;
     private final EGOService EGOService;
 
@@ -28,6 +36,7 @@ public class WikimediaScraper
         this.EGOService = EGOService;
     }
 
+    // FIXME Nie radzi sobię z LCB Sinner ID
     public static DTOBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         String[] idResistances = {"Slash", "Pierce", "Blunt"};
@@ -49,89 +58,98 @@ public class WikimediaScraper
         for (Element row : largeSelector)
         {
             // Używane do zdobycia określonego elementu, nie chcę mi się tego inicjalizować milion razy
-            Element specificatorHelper;
             Elements specifiedRow = row.select("td");
             int specifiedRowSize = specifiedRow.size();
-            // Zawsze treshholdy staggera
-            if (specifiedRowSize == 1)
+            switch(specifiedRowSize)
             {
-                specificatorHelper = specifiedRow.getFirst();
-                Elements staggerThresholds = specificatorHelper.getElementsByTag("font");
-                System.out.println("Stagger Threshholds: ");
-                for(Element staggerThreshold : staggerThresholds)
+                case 1 -> scrapeStaggerThresholds(builder, specifiedRow);
+                case 2 -> scrapeTraits(builder, specifiedRow);
+                case 3 ->
                 {
-                    builder.addStaggerThreshold(staggerThreshold.text());
-                    System.out.println(staggerThreshold.text());
+                    if(!specifiedRow.getFirst().text().isEmpty())
+                    {
+                        parseResistances(specifiedRow.text(), idResistances, builder);
+                    }
                 }
-            }
-            // Zawsze tylko traits
-            // Wykombinować jak to rozdzielić, pewnie będzie to jakaś lista stringów w klasie wsmie
-            else if (specifiedRowSize == 2)
-            {
-                specificatorHelper = specifiedRow.get(1);
-                Elements unitTraits = specificatorHelper.getElementsByTag("b");
-                System.out.println("Traits: ");
-                for(Element unitTrait : unitTraits)
-                {
-                    builder.addTrait(unitTrait.text());
-                    System.out.println(unitTrait.text());
-                }
-            }
-            // Zawsze resistances, będę musiał jakoś wyjąć tylko wartości z nawiasów klamrowych
-            else if (specifiedRowSize == 3 && !specifiedRow.getFirst().text().isEmpty())
-            {
-                // Tu jest git
-                parseResistances(specifiedRow.text(), idResistances, builder);
-            }
-
-           else if (specifiedRowSize == 4)
-            {
-                String rowType = "ERROR!";
-                if(specifiedRow.get(0).text().contains("Rarity"))
-                {
-                    rowType = "RarityWorld";
-                }
-               else if(specifiedRow.get(0).text().contains("Season"))
-                {
-                    rowType = "SeasonRelease";
-                }
-                if(rowType.equals("RarityWorld"))
-                {
-                    String rarityIMG = Optional.ofNullable(specifiedRow.get(1).selectFirst("img"))
-                            .map(img -> img.attr("alt"))
-                            .orElse("IMAGE NOT FOUND");
-                    builder.setRarity(Tiers.Rarity.rarityParser(rarityIMG));
-                    System.out.println("Rarity : " + rarityIMG);
-
-                    Element worldIMGURL = specifiedRow.get(3).selectFirst("img");
-                    String worldIMG = Optional.ofNullable(worldIMGURL)
-                            .map(img -> img.attr("alt"))
-                            .orElse("IMAGE NOT FOUND");
-                    builder.setWorldFile(worldIMG);
-                    builder.setWorld(worldIMG.replace("Icon.png", ""));
-                    System.out.println("World : " + worldIMG);
-                    scrapeImageURL(worldIMGURL);
-                }
-                else if(rowType.equals("SeasonRelease"))
-                {
-                    builder.setSeason(specifiedRow.get(1).text());
-                    System.out.println("Season : " + specifiedRow.get(1).text());
-                    builder.setReleaseDate(specifiedRow.get(3).text());
-                    System.out.println("Release : " + specifiedRow.get(3).text());
-                }
-            }
-            // Zawsze życie + speed + def. level
-            else if (specifiedRowSize == 6)
-            {
-                builder.setHealth(Integer.parseInt(specifiedRow.get(1).text().trim()));
-                System.out.println("Health: " + specifiedRow.get(1).text());
-                builder.setSpeed(specifiedRow.get(3).text());
-                System.out.println("Speed: " + specifiedRow.get(3).text());
-                builder.setDefenseLevel(Integer.parseInt(specifiedRow.get(5).text().trim()));
-                System.out.println("Defense level: " + specifiedRow.get(5).text());
+                case 4 -> scrapeTypeData(builder, specifiedRow);
+                case 6 -> scrapeBaseStats(builder, specifiedRow);
             }
         }
         return builder;
+    }
+
+    private static void scrapeStaggerThresholds(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
+        Element specificatorHelper;
+        specificatorHelper = extractElementFromSpecifiedIndex(specifiedRow, 0);
+        Elements staggerThresholds = specificatorHelper.getElementsByTag("font");
+        System.out.println("Stagger Threshholds: ");
+        for(Element staggerThreshold : staggerThresholds)
+        {
+            builder.addStaggerThreshold(staggerThreshold.text());
+            System.out.println(staggerThreshold.text());
+        }
+    }
+
+    private static void scrapeTraits(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
+        Element specificatorHelper;
+        specificatorHelper = extractElementFromSpecifiedIndex(specifiedRow, 1);
+        Elements unitTraits = specificatorHelper.getElementsByTag("b");
+        System.out.println("Traits: ");
+        for(Element unitTrait : unitTraits)
+        {
+            builder.addTrait(unitTrait.text());
+            System.out.println(unitTrait.text());
+        }
+    }
+
+    private static void scrapeTypeData(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
+        String rowType = "ERROR!";
+        String rowText = extractTextFromSpecifiedIndex(specifiedRow, 0);
+        if(rowText.contains("Rarity"))
+        {
+            rowType = "RarityWorld";
+        }
+       else if(rowText.contains("Season"))
+        {
+            rowType = "SeasonRelease";
+        }
+        if(rowType.equals("RarityWorld"))
+        {
+            String rarityIMG = extractAltFromSpecifiedIndex(specifiedRow, 1);
+            builder.setRarity(Tiers.Rarity.rarityParser(rarityIMG));
+            System.out.println("Rarity : " + rarityIMG);
+
+            Element worldIMGURL = extractElementFromSpecifiedIndex(specifiedRow, 3).selectFirst("img");
+            String worldIMG = extractAltFromSpecifiedIndex(specifiedRow, 3);
+            builder.setWorldFile(worldIMG);
+            builder.setWorld(worldIMG.replace("Icon.png", ""));
+            System.out.println("World : " + worldIMG);
+            scrapeImageURL(worldIMGURL);
+        }
+        else if(rowType.equals("SeasonRelease"))
+        {
+            String season = extractTextFromSpecifiedIndex(specifiedRow, 1);
+            builder.setSeason(season);
+            System.out.println("Season : " + season);
+
+            String release = extractTextFromSpecifiedIndex(specifiedRow, 3);
+            builder.setReleaseDate(release);
+            System.out.println("Release : " + release);
+        }
+    }
+
+    private static void scrapeBaseStats(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
+        int health = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 1));
+        builder.setHealth(health);
+        System.out.println("Health: " + health);
+
+        String speed = extractTextFromSpecifiedIndex(specifiedRow, 3);
+        builder.setSpeed(speed);
+        System.out.println("Speed: " + speed);
+
+        int defenseLevel = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 5));
+        builder.setDefenseLevel(defenseLevel);
+        System.out.println("Defense level: " + defenseLevel);
     }
 
     // TODO Stworzyć osobnę DTO dla sanity
@@ -191,6 +209,8 @@ public class WikimediaScraper
         }
         return abilities;
     }
+
+    // TODO Dodać dodawanie pasywek do DB
     public static void scrapePassiveData(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder)
     {
         // Ciekawy styl jest z tym b:contains...
@@ -265,10 +285,10 @@ public class WikimediaScraper
         }
     }
 
-    // TODO Wypełnić builderao
-    // TODO to NAPEWNO rozbić na mniejsze funkcje, absolutnie mało czytelne i chaotycznie napisane
+    // TODO Rozbić na mniejsze metody, pamiętaj o SINGLE RESPONSIBILITY PRINCIPLE
     public Object scrapeEGOAbilities(Document htmlContent, DTOBuilders.EGODataBuilder builder)
     {
+        // FIXME Brak tytułu dla https://limbuscompany.wiki.gg/wiki/To_Remain_Oneself_%E5%AE%81%E4%BD%9C%E5%90%BE_Hong_Lu
         String title = Optional.of(htmlContent)
                 .map(content -> content.selectFirst(".mw-page-title-main"))
                 .map(Element::text)
@@ -327,8 +347,8 @@ public class WikimediaScraper
             {
                 continue;
             }
-            Element headerRow = specifiedRow.get(0);
-            Element dataRow = specifiedRow.get(1);
+            Element headerRow = extractElementFromSpecifiedIndex(specifiedRow, 0);
+            Element dataRow = extractElementFromSpecifiedIndex(specifiedRow, 1);
             if(dataRow.text().isEmpty())
             {
                 return null;
@@ -350,12 +370,14 @@ public class WikimediaScraper
         Element row = genericInformationResistances.child(1);
 
         parseResistances(row.text(), egoResistances, builder);
+        // FIXME EGO nie otrzymują skillslota w builderze dla ability
         DTOBuilders.AbilityDataBuilder abilityBuilder = new DTOBuilders.AbilityDataBuilder();
 
         Element awakeningInformation;
         Element awakeningPortrait;
         abilityBuilder.setSkillSlot("1");
 
+        // TODO Rozbić na dwie metody, jedna odpowiednia za info, druga za obrazki
         if(!hasNoCorrosion)
         {
             awakeningInformation = Optional.of(htmlContent)
@@ -466,7 +488,6 @@ public class WikimediaScraper
         }
     }
 
-    // TODO dodać obsługiwanie hasNoCorrosion
     private static void scrapeEgoGenericInformation(DTOBuilders.EGODataBuilder builder, Element genericInformation, boolean hasNoCorrosion)
     {
         Elements genericRows;
@@ -487,7 +508,7 @@ public class WikimediaScraper
             {
                 if(hasNoCorrosion)
                 {
-                    String riskLevel = extractAltFromSpecifiedRow(specifiedRow, 3);
+                    String riskLevel = extractAltFromSpecifiedIndex(specifiedRow, 3);
                     builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
                     System.out.println("Risk Level: " + riskLevel);
 
@@ -495,7 +516,7 @@ public class WikimediaScraper
                     builder.setSeason(season);
                     System.out.println("Season: " + season);
 
-                    String affinity = extractAltFromSpecifiedRow(specifiedRow, 1);
+                    String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1);
                     builder.setSinAffinity(affinity);
                     System.out.println("Affinity: " + affinity);
 
@@ -505,28 +526,28 @@ public class WikimediaScraper
 
                     break;
                 }
-                String riskLevel = extractAltFromSpecifiedRow(specifiedRow, 1);
+                String riskLevel = extractAltFromSpecifiedIndex(specifiedRow, 1);
                 builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
                 System.out.println("Risk Level: " + riskLevel);
 
-                String season = extractTextFromSpecifiedRow(specifiedRow,3);
+                String season = extractTextFromSpecifiedIndex(specifiedRow,3);
                 builder.setSeason(season);
                 System.out.println("Season: " + season);
             }
             else if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
             {
-                String affinity = extractAltFromSpecifiedRow(specifiedRow, 1);
+                String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1);
 
                 builder.setSinAffinity(affinity);
                 System.out.println("Affinity: " + affinity);
 
-                String releaseDate = extractTextFromSpecifiedRow(specifiedRow,3);
+                String releaseDate = extractTextFromSpecifiedIndex(specifiedRow,3);
                 builder.setReleaseDate(releaseDate);
                 System.out.println("Release: " + releaseDate);
             }
             else if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
             {
-                String abnormality = extractTextFromSpecifiedRow(specifiedRow, 1);
+                String abnormality = extractTextFromSpecifiedIndex(specifiedRow, 1);
                 builder.setAbnormality(abnormality);
                 System.out.println("Abnormality: " + abnormality);
             }
@@ -558,17 +579,10 @@ public class WikimediaScraper
         System.out.println();
     }
 
-    // TODO też mógłbym chyba teoretycznie rozbić to na mniejsze funkcje, później o tym pomyśl
+    // TODO Rozbić na mniejsze metody, pamiętaj o SINGLE RESPONSIBILITY PRINCIPLE
     // TODO dodaj zbieranie status effectów
     private static ScraperDataDTOs.Ability processSingleAbility(Element abilityContainer, DTOBuilders.BaseEquippableBuilder<?> builder, DTOBuilders.AbilityDataBuilder abilityBuilder)
     {
-        List<String> iconWhiteList = List.of("Wrath1.png","Wrath2.png","Wrath3.png",
-                "Lust1.png", "Lust2.png", "Lust3.png",
-                "Sloth1.png", "Sloth2.png", "Sloth3.png",
-                "Gluttony1.png", "Gluttony2.png", "Gluttony3.png",
-                "Gloom1.png", "Gloom2.png", "Gloom3.png",
-                "Pride1.png", "Pride2.png", "Pride3.png",
-                "Envy1.png", "Envy2.png", "Envy3.png");
 
         // Żebym wiedział, co się dzieje
         String skillSlot = abilityContainer.id();
@@ -585,9 +599,9 @@ public class WikimediaScraper
 
         // Z racji, że wiemy, że zawsze będziemy mieć daną kolejnośc kolumn,
         // możemy działać po kolejności pojawienia się
-        Element leftAbilityPanel = columns.getFirst();
+        Element leftAbilityPanel = extractElementFromSpecifiedIndex(columns, 0);
 
-        // W razie że nic nie dostaniemy, lepsze coś niż null
+        // W razie, że nic nie dostaniemy, lepsze coś niż null
         abilityBuilder.setSinAffinity("NO SIN AFFINITY FOUND");
         for (Element image : leftAbilityPanel.select("img"))
         {
@@ -598,17 +612,17 @@ public class WikimediaScraper
                 System.out.println("Sin affinity: " + altText.replace(".png", ""));
             }
         }
-        Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=\" Icon.png\"], img[alt$=\" Skill.png\"]");
+        Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");
         scrapeImageURL(skillIcon);
         String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
         abilityBuilder.setSkillIconFile(skillIconFile);
         System.out.println(skillIconFile.replace(".png", ""));
 
         Elements abilityPowers = leftAbilityPanel.select("b");
-        Element basePowerElement = abilityPowers.get(0);
+        Element basePowerElement = extractElementFromSpecifiedIndex(abilityPowers, 0);
         // w Jsoup '>' oznacza bezpośrednie dziecko
         Element damageTypeElement = leftAbilityPanel.selectFirst("> img");
-        Element coinPowerElement = abilityPowers.get(1);
+        Element coinPowerElement = extractElementFromSpecifiedIndex(abilityPowers, 1);
 
         String damageType = damageTypeElement != null ? damageTypeElement.attr("alt") : "NO DAMAGE TYPE ICON FOUND";
         abilityBuilder.setBasePower(Integer.parseInt(basePowerElement.text()));
@@ -618,7 +632,7 @@ public class WikimediaScraper
         abilityBuilder.setCoinPower(coinPowerElement.text());
         System.out.println("Coin power: " + coinPowerElement.text());
 
-        Element rightAbilityPanel = columns.get(1);
+        Element rightAbilityPanel = extractElementFromSpecifiedIndex(columns, 1);
         int coinCount = 0;
         for (Element image : rightAbilityPanel.select("img"))
         {
@@ -645,12 +659,7 @@ public class WikimediaScraper
         abilityBuilder.setAttackWeight(attackWeight);
         System.out.println("Attack weight: "  + attackWeight);
 
-        // ownText wyciąga tekst, który jest zawarty w pojemniku rightAbilityPanel,
-        // ale nie w jego dzieciach
-        // KATASTROFALNA kombinacja metody po metodzie
-        // String offenseLevel = rightAbilityPanel.textNodes().getFirst().text().replaceAll(".*([+-]\\d+).*", "$1");
-
-        // Powinno być bezpieczniejsze, ale nie wiem czy nie znacznie wolniejsze
+        // Powinno być bezpieczniejsze, ale nie wiem, czy nie znacznie wolniejsze
         String offenseLevel = rightAbilityPanel.textNodes().stream()
                         .map(tn -> tn.text().trim())
                         .filter(t -> t.matches(".*[+-]\\d+.*"))
@@ -681,12 +690,22 @@ public class WikimediaScraper
             effects.forEach(effect -> System.out.println("- " + effect));
         });
 
+        // TODO Powinienem tutaj bezpośrednio budować umiejętnośc do DB, a do DTO zwykle dodać jej klucz główny
         ScraperDataDTOs.Ability builtAbility = abilityBuilder.buildAbilityData();
         builder.addAbility(builtAbility);
         return builtAbility;
     }
 
-    private static String extractAltFromSpecifiedRow(Elements columns, int columnIndex)
+    private static Element extractElementFromSpecifiedIndex(Elements columns, int columnIndex)
+    {
+        if(columnIndex >= columns.size())
+        {
+            return new Element("div");
+        }
+        return columns.get(columnIndex);
+    }
+
+    private static String extractAltFromSpecifiedIndex(Elements columns, int columnIndex)
     {
         if(columnIndex >= columns.size())
         {
@@ -696,7 +715,7 @@ public class WikimediaScraper
         return img != null ? img.attr("alt") : "NO IMAGE!";
     }
 
-    private static String extractTextFromSpecifiedRow(Elements columns, int columnIndex)
+    private static String extractTextFromSpecifiedIndex(Elements columns, int columnIndex)
     {
         if(columnIndex >= columns.size())
         {
