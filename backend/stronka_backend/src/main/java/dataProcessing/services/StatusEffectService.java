@@ -24,7 +24,6 @@ public class StatusEffectService
         statusEffectEntity.setName(newStatusEffect.name());
         statusEffectEntity.setIcon(newStatusEffect.icon());
         statusEffectEntity.setDescription(newStatusEffect.description());
-        statusEffectEntity.setRelatedEffects(newStatusEffect.relatedEffects());
 
         // Zapisujemy do bazy danych
         statusEffectRepository.save(statusEffectEntity);

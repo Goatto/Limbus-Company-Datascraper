@@ -46,28 +46,27 @@ public class ScraperDataDTOs
      */
     // Nie korzystamy z interfejsu, z racji, że utrudni mi to parsowanie danych do DB
     public record IDData(
-        String name,
-        // TODO sprawdzić czy to ma sens
-        // String sinnerName,
-        String portraitFile,
-        Tiers.Rarity rarity,
-        String world,
-        String worldFile,
-        String season,
-        String releaseDate,
-        int health,
-        String speed,
-        int defenseLevel,
-        Passive supportPassive,
+            String name,
+            String sinnerName,
+            String portraitFile,
+            Tiers.Rarity rarity,
+            String world,
+            String worldFile,
+            String season,
+            String releaseDate,
+            int health,
+            String speed,
+            int defenseLevel,
+            Passive supportPassive,
 
-        List<String> traits,
-        List<String> staggerThresholds,
-        Map<String, Double> resistances,
-        // Ewentualnie później można oddzielić te dwie do osobnego typu danych
-        List<String> positiveSanityEffects,
-        List<String> negativeSanityEffects,
-        List<Ability> abilities,
-        List<Passive> combatPassives
+            List<String> traits,
+            List<String> staggerThresholds,
+            Map<String, Double> resistances,
+            // Ewentualnie później można oddzielić te dwie do osobnego typu danych
+            List<String> positiveSanityEffects,
+            List<String> negativeSanityEffects,
+            List<UUID> abilities,
+            List<Passive> combatPassives
     ){}
 
     /**
@@ -107,7 +106,7 @@ public class ScraperDataDTOs
         Map<String, Integer> awakenSinCost,
         Map<String, Integer> corrosionSinCost,
         List<UUID> abilities,
-        List<UUID> combatPassives
+        List<Passive> combatPassives
 
 
     ){}
@@ -128,7 +127,6 @@ public class ScraperDataDTOs
      * @param coinEffects Efekty umiejętności dla danej monety
      */
     public record Ability(
-            // TODO ale jaki skillSlot ma ego?
             String skillSlot,
             String abilityName,
             String sinAffinity,
@@ -147,10 +145,11 @@ public class ScraperDataDTOs
 
     /**
      * Rekord odpowiedni za zebranie wszystkich informacji o jednej umiejętności pasywnej, combat czy to support
-     * @param passiveName Nazwa umiejętności pasywnej
-     * @param costType Jaki jest typ jej kosztu (ie. resonance czy owned, jeżeli ma koszt)
-     * @param cost Ilość sin'ów wymaganych do spełnienia kosztu
-     * @param description Opis umiejętności pasywnej (i.e. co ona robi)
+     *
+     * @param passiveName         Nazwa umiejętności pasywnej
+     * @param costType            Jaki jest typ jej kosztu (ie. resonance czy owned, jeżeli ma koszt)
+     * @param cost                Ilość sin'ów wymaganych do spełnienia kosztu
+     * @param description         Opis umiejętności pasywnej (i.e. co ona robi)
      */
     public record Passive(
             String passiveName,
@@ -158,7 +157,7 @@ public class ScraperDataDTOs
             Map<String, Integer> cost,
             List<String> description,
             Set<String> statusEffects
-    ){}
+            ){}
 
     /**
      * Rekord odpowiedni za zebranie wszystkich informacji o jednym status-effect'cie

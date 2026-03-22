@@ -2,23 +2,29 @@ package dataProcessing.services;
 
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.AbilityEntity;
+import dataProcessing.models.StatusEffectEntity;
 import dataProcessing.repositories.AbilityRepository;
+import dataProcessing.repositories.StatusEffectRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 @Service
 public class AbilityService
 {
     private final AbilityRepository abilityRepository;
+    private final StatusEffectRepository statusEffectRepository;
 
-    public AbilityService(AbilityRepository abilityRepository)
+    public AbilityService(AbilityRepository abilityRepository, StatusEffectRepository statusEffectRepository)
     {
         this.abilityRepository = abilityRepository;
+        this.statusEffectRepository = statusEffectRepository;
     }
 
     // @Transactional - Jeżeli cały zapis nie odbędzie się poprawnie, nic nie zostanie zapisane
     @Transactional
-    public AbilityEntity saveNewAbility(ScraperDataDTOs.Ability newAbility)
+    public UUID saveNewAbility(ScraperDataDTOs.Ability newAbility)
     {
         AbilityEntity abilityEntity = new AbilityEntity();
 
@@ -34,7 +40,15 @@ public class AbilityService
         abilityEntity.setOffenseLevel(newAbility.offenseLevel());
         abilityEntity.setBaseEffects(newAbility.baseEffects());
         abilityEntity.setCoinEffects(newAbility.coinEffects());
+        for(String index : newAbility.statusEffects())
+        {
+            StatusEffectEntity savedStatusEffect = statusEffectRepository.getReferenceById(index);
+            // abilityEntity.stat
+        }
 
-        return abilityRepository.save(abilityEntity);
+
+        AbilityEntity savedEntity = abilityRepository.save(abilityEntity);
+
+        return savedEntity.getId();
     }
 }

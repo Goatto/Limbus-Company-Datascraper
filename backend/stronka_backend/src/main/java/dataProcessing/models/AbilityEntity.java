@@ -79,4 +79,6 @@ public class AbilityEntity
     // JoinColumn określa nazwę kolumny z kluczem obcym
     @JoinColumn(name = "ego_name")
     private EGOEntity ego;
+
+
 }

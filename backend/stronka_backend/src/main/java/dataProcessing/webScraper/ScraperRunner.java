@@ -38,7 +38,7 @@ public class ScraperRunner implements CommandLineRunner
                 // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
                 // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
                 List<String> urls = List.of(
-                            ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
+                            //("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
                             ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
 
                 List<String> genericAssetScraper = List.of(

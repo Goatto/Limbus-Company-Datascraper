@@ -10,6 +10,7 @@ import org.jsoup.select.NodeVisitor;
 import java.util.*;
 import java.util.regex.Pattern;
 
+// FIXME Poprawić jak zbierasz status-effecty
 public class ScraperNodeVisitors
 {
     /**
@@ -75,7 +76,7 @@ public class ScraperNodeVisitors
                     }
                     else if (!altText.isEmpty())
                     {
-                        statusEffectsBuffer.add(altText);
+                        statusEffectsBuffer.add(altText.replace(".png", "").trim());
                     }
                 }
                 default -> {}
@@ -162,18 +163,21 @@ public class ScraperNodeVisitors
                         finalTitle,
                         finalCostType,
                         costBuffer,
-                        finalEffects);
+                        finalEffects,
+                        statusEffectsBuffer);
             }
         }
         private ScraperDataDTOs.Passive getBuiltPassive()
         {
+            System.out.println(statusEffectsBuffer);
             return this.resultPassive;
         }
     }
 
     public record AbilityResult(
             List<String> baseEffects,
-            Map<String, List<String>> coinEffects
+            Map<String, List<String>> coinEffects,
+            Set<String> statusEffects
     ) {}
 
     /**
@@ -201,6 +205,8 @@ public class ScraperNodeVisitors
         private final List<String> baseEffects = new ArrayList<>();
         @Getter
         private final Map<String, List<String>> coinEffects = new HashMap<>();
+        @Getter
+        private final Set<String> statusEffects = new HashSet<>();
 
         // Buffor odpowiedni za składanie tekstu w jedną linię
         private final StringBuilder currentLineBuffer = new StringBuilder();
@@ -260,7 +266,6 @@ public class ScraperNodeVisitors
                     saveCurrentLine();
                     isACoin = true;
                     passHeader = true;
-
                     Element coinImage = element.selectFirst("img[alt^=\"CoinEffect\"]");
                     if(coinImage != null)
                     {
@@ -274,6 +279,11 @@ public class ScraperNodeVisitors
                 else if(element.tagName().equals("br"))
                 {
                     saveCurrentLine();
+                }
+                else if(element.tagName().equals("img") && !element.attr("alt").contains("oin.png")
+                && !element.attr("alt").contains("CoinEffect") && !element.attr("alt").contains("SkillAttack"))
+                {
+                    statusEffects.add(element.attr("alt").replace(".png", "").trim());
                 }
             }
         }
@@ -314,7 +324,8 @@ public class ScraperNodeVisitors
 
         public AbilityResult getResult()
         {
-            return new AbilityResult(getBaseEffects(), getCoinEffects());
+            System.out.println(statusEffects);
+            return new AbilityResult(getBaseEffects(), getCoinEffects(), getStatusEffects());
         }
     }
 }

@@ -2,29 +2,34 @@ package dataProcessing;
 
 import dataProcessing.webScraper.enums.Tiers;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class DTOBuilders
 {
     public static abstract class BaseEquippableBuilder<T extends BaseEquippableBuilder<T>>
     {
         protected String name;
+        protected String sinnerName;
         protected String portraitFile;
         protected String season;
         protected String releaseDate;
 
-        protected List<ScraperDataDTOs.Ability> abilities = new ArrayList<>();
+        protected List<UUID> abilities = new ArrayList<>();
         protected List<ScraperDataDTOs.Passive> combatPassives = new ArrayList<>();
         protected Map<String, Double> resistances = new HashMap<>();
+        // TODO Pomyśl o dodaniu tu combat passives
 
         protected abstract T self();
 
         public T setName(String name)
         {
             this.name = name;
+            return self();
+        }
+
+        public T setSinnerName(String sinnerName)
+        {
+            this.sinnerName = sinnerName;
             return self();
         }
 
@@ -46,7 +51,7 @@ public class DTOBuilders
             return self();
         }
 
-        public T addAbility(ScraperDataDTOs.Ability ability)
+        public T addAbility(UUID ability)
         {
             this.abilities.add(ability);
             return self();
@@ -66,7 +71,6 @@ public class DTOBuilders
     }
     public static class IDDataBuilder extends BaseEquippableBuilder<IDDataBuilder>
     {
-
         private Tiers.Rarity rarity;
         private String world;
         private String worldFile;
@@ -156,7 +160,7 @@ public class DTOBuilders
         public ScraperDataDTOs.IDData buildIDData()
         {
             return new ScraperDataDTOs.IDData(
-                    name, portraitFile, rarity, world, worldFile, season, releaseDate,
+                    name,sinnerName, portraitFile, rarity, world, worldFile, season, releaseDate,
                     health, speed, defenseLevel, supportPassive, traits,
                     staggerThresholds, resistances, positiveSanityEffects, negativeSanityEffects,
                     abilities, combatPassives
@@ -232,7 +236,7 @@ public class DTOBuilders
         public ScraperDataDTOs.EGOData buildEGOData()
         {
             return new ScraperDataDTOs.EGOData(
-                    name, portraitFile, corrodedPortraitFile, threatLevel, season, releaseDate, sinAffinity, abnormality,
+                    name, sinnerName,  portraitFile, corrodedPortraitFile, threatLevel, season, releaseDate, sinAffinity, abnormality,
                     awakenSanityCost, corrosionSanityCost, resistances, awakenSinCost, corrosionSinCost,
                     abilities, combatPassives
             );
@@ -254,6 +258,7 @@ public class DTOBuilders
 
         private List<String> baseEffects = new ArrayList<>();
         private Map<String, List<String>> coinEffects = new HashMap<>();
+        private Set<String> statusEffects = new HashSet<>();
 
         public AbilityDataBuilder setSkillSlot(String skillSlot)
         {
@@ -327,11 +332,17 @@ public class DTOBuilders
             return this;
         }
 
+        public AbilityDataBuilder addStatusEffect(String statusEffect)
+        {
+            this.statusEffects.add(statusEffect);
+            return this;
+        }
+
         public ScraperDataDTOs.Ability buildAbilityData()
         {
             return new ScraperDataDTOs.Ability(
                     skillSlot, abilityName, sinAffinity, skillIconFile, attackWeight, basePower,
-                    damageType, coinPower, coinCount, offenseLevel, baseEffects, coinEffects
+                    damageType, coinPower, coinCount, offenseLevel, baseEffects, coinEffects, statusEffects
             );
         }
     }

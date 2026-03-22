@@ -52,8 +52,4 @@ public class StatusEffectEntity
         TODO co to jsonb?
      */
     private List<String> description;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "related_effects", columnDefinition = "jsonb")
-    private Set<String> relatedEffects;
 }

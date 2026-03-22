@@ -63,7 +63,6 @@ public class StatusEffectsScraping
         private final StringBuilder iconBuffer = new StringBuilder();
 
         private final StringBuilder descriptionBuffer = new StringBuilder();
-        private final Set<String> relatedEffectsBuffer = new HashSet<>();
 
         // Najłatwiejszy sposób na zdecydowanie co gdzie wkleić, nasza linijka posiada n pojemników, lecz nas interesują
         // tylko pierwsze dwie, (1 oraz 2)
@@ -112,7 +111,6 @@ public class StatusEffectsScraping
                     else if (currentBox == 2)
                     {
                         ImageScraper.scrapeImageURL(element);
-                        relatedEffectsBuffer.add(icon);
                     }
                 }
             }
@@ -144,16 +142,11 @@ public class StatusEffectsScraping
                     System.out.println(line);
                 }
                 System.out.println("Related effects: ");
-                for (String line : relatedEffectsBuffer)
-                {
-                    System.out.println(" -" + line);
-                }
 
                 this.resultStatusEffect = new ScraperDataDTOs.StatusEffect(
                         finalName,
                         finalIcon,
-                        finalDescriptionLines,
-                        new HashSet<>(relatedEffectsBuffer));
+                        finalDescriptionLines);
             }
         }
 

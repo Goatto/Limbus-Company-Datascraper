@@ -27,6 +27,11 @@ public class WikimediaScraper
             "Pride1.png", "Pride2.png", "Pride3.png",
             "Envy1.png", "Envy2.png", "Envy3.png");
 
+    static List<String> sinnerWhiteList = List.of("Yi Sang", "Faust", "Don Quixote", "Ryōshū",
+            "Meursault", "Hong Lu", "Heathcliff", "Ishmael", "Rodion", "Sinclair", "Outis", "Gregor");
+
+    static String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
+
     private final AbilityService abilityService;
     private final EGOService EGOService;
 
@@ -40,11 +45,8 @@ public class WikimediaScraper
     public static DTOBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         String[] idResistances = {"Slash", "Pierce", "Blunt"};
-
-        Element smallSelector = htmlContent.selectFirst(".mw-page-title-main");
-        String unitTitle = (smallSelector != null) ? smallSelector.text() : "No title";
-        builder.setName(unitTitle);
-        System.out.println(unitTitle);
+        scrapeName(htmlContent, builder);
+        Element smallSelector;
 
         smallSelector = htmlContent.selectFirst(".mw-collapsible-content a img");
 
@@ -76,6 +78,23 @@ public class WikimediaScraper
             }
         }
         return builder;
+    }
+
+    private static void scrapeName(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder) {
+        Element titleSelector = htmlContent.selectFirst(".mw-page-title-main");
+        String unitTitle = (titleSelector != null) ? titleSelector.text() : "No title";
+        // TODO Wykombinować jakiś lepszy sposób na to
+        for(String sinner : sinnerWhiteList)
+        {
+            if(unitTitle.contains(sinner))
+            {
+                System.out.println("Sinner: " + sinner);
+                builder.setSinnerName(sinner);
+                break;
+            }
+        }
+        builder.setName(unitTitle);
+        System.out.println(unitTitle);
     }
 
     private static void scrapeStaggerThresholds(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
@@ -205,7 +224,7 @@ public class WikimediaScraper
                 continue;
             }
             // TODO tutaj chyba odbywało by się dodawanie
-           abilityService.saveNewAbility(processSingleAbility(element, new DTOBuilders.IDDataBuilder(), new DTOBuilders.AbilityDataBuilder()));
+           processSingleAbility(element, new DTOBuilders.IDDataBuilder(), new DTOBuilders.AbilityDataBuilder());
         }
         return abilities;
     }
@@ -258,14 +277,18 @@ public class WikimediaScraper
 
             for(Element divPassiveContainer : divPassiveContainers)
             {
+                // TODO Dodać tu buildera pasywek
                 ScraperDataDTOs.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
+
                 switch(passiveCategory)
                 {
+                    // TODO To chyba mogę jakoś poprawić
                     case "COMBAT_PASSIVE" ->
                     {
                         if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
                         {
                             idBuilder.addCombatPassive(passive);
+
                         }
                         else if(builder instanceof DTOBuilders.EGODataBuilder egoBuilder)
                         {
@@ -289,16 +312,8 @@ public class WikimediaScraper
     public Object scrapeEGOAbilities(Document htmlContent, DTOBuilders.EGODataBuilder builder)
     {
         // FIXME Brak tytułu dla https://limbuscompany.wiki.gg/wiki/To_Remain_Oneself_%E5%AE%81%E4%BD%9C%E5%90%BE_Hong_Lu
-        String title = Optional.of(htmlContent)
-                .map(content -> content.selectFirst(".mw-page-title-main"))
-                .map(Element::text)
-                .orElse("BRAK TYTUŁU");
+        scrapeName(htmlContent, builder);
 
-        System.out.println(title);
-        builder.setName(title);
-        // Do wykorzystania i nadpisania przy przechodzeniu przez wiersze, żeby nie inicjalizować za każdym razem
-        Elements genericRows;
-        String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
         Element genericInformation = Optional.of(htmlContent)
                 .map(content -> content.selectFirst(".mw-body-content"))
                 .orElse(new Element("div"));
@@ -328,7 +343,7 @@ public class WikimediaScraper
 
         scrapeEgoGenericInformation(builder, genericInformation, hasNoCorrosion);
 
-        genericRows = Optional.ofNullable(genericInformationCost)
+        Elements genericRows = Optional.ofNullable(genericInformationCost)
                 .map(element -> element.getElementsByTag("tr"))
                 .orElse(new Elements());
 
@@ -347,8 +362,10 @@ public class WikimediaScraper
             {
                 continue;
             }
+
             Element headerRow = extractElementFromSpecifiedIndex(specifiedRow, 0);
             Element dataRow = extractElementFromSpecifiedIndex(specifiedRow, 1);
+
             if(dataRow.text().isEmpty())
             {
                 return null;
@@ -373,42 +390,33 @@ public class WikimediaScraper
         // FIXME EGO nie otrzymują skillslota w builderze dla ability
         DTOBuilders.AbilityDataBuilder abilityBuilder = new DTOBuilders.AbilityDataBuilder();
 
-        Element awakeningInformation;
-        Element awakeningPortrait;
-        abilityBuilder.setSkillSlot("1");
+        scrapeEGOInformation(htmlContent, builder, abilityBuilder, hasNoCorrosion);
+        scrapeEGOPortraits(htmlContent, builder, hasNoCorrosion);
 
-        // TODO Rozbić na dwie metody, jedna odpowiednia za info, druga za obrazki
+        EGOService.saveNewEGO(builder.buildEGOData());
+        return true;
+    }
+
+    // TODO Pomyśl czy nie lepiej stworzyć nowego abilityBuildera zamiast robić to tak
+    private void scrapeEGOInformation(Document htmlContent, DTOBuilders.EGODataBuilder builder,
+                                      DTOBuilders.AbilityDataBuilder abilityBuilder, boolean hasNoCorrosion)
+    {
+        Element awakeningInformation;
+        abilityBuilder.setSkillSlot("1");
         if(!hasNoCorrosion)
         {
             awakeningInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
+            builder.addAbility(processSingleAbility(awakeningInformation, builder, abilityBuilder));
 
-            awakeningPortrait = Optional.of(htmlContent)
-                    .map(content -> content.selectFirst(
-                            "#mw-customcollapsible-awakening div.ABMobile[style*=float:left] img[alt$=.png]"))
-                    .orElse(new Element("div"));
-
-            builder.setPortraitFile(awakeningPortrait.attr("alt"));
-            processSingleAbility(awakeningInformation, builder, abilityBuilder);
-
-
-
+            abilityBuilder.setSkillSlot("2");
             Element corrosionInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-
-            Element corrosionPortrait = Optional.of(htmlContent)
-                    .map(content -> content.selectFirst(
-                            "#mw-customcollapsible-corrosion div.ABMobile[style*=float:left] img[alt$=.png]"))
-                    .orElse(new Element("div"));
-
-            abilityBuilder.setSkillSlot("2");
-            scrapeImageURL(corrosionPortrait);
-            builder.setCorrededPortraitFile(corrosionPortrait.attr("alt"));
-            processSingleAbility(corrosionInformation, builder, abilityBuilder);
+            builder.addAbility(processSingleAbility(corrosionInformation, builder, abilityBuilder));
         }
         else
         {
@@ -416,21 +424,41 @@ public class WikimediaScraper
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
+            builder.addAbility(processSingleAbility(awakeningInformation, builder, abilityBuilder));
+        }
+    }
 
+    private static void scrapeEGOPortraits(Document htmlContent, DTOBuilders.EGODataBuilder builder,
+                                           boolean hasNoCorrosion)
+    {
+        Element awakeningPortrait;
+        if(!hasNoCorrosion)
+        {
+            awakeningPortrait = Optional.of(htmlContent)
+                    .map(content -> content.selectFirst(
+                            "#mw-customcollapsible-awakening div.ABMobile[style*=float:left] img[alt$=.png]"))
+                    .orElse(new Element("div"));
+
+            Element corrosionPortrait = Optional.of(htmlContent)
+                    .map(content -> content.selectFirst(
+                            "#mw-customcollapsible-corrosion div.ABMobile[style*=float:left] img[alt$=.png]"))
+                    .orElse(new Element("div"));
+
+            builder.setCorrededPortraitFile(corrosionPortrait.attr("alt"));
+            scrapeImageURL(corrosionPortrait);
+        }
+        else
+        {
             awakeningPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:left] img[alt$=.png]"))
                     .orElse(new Element("div"));
-
-            builder.setPortraitFile(awakeningPortrait.attr("alt"));
-
-            processSingleAbility(awakeningInformation, builder, abilityBuilder);
         }
-        EGOService.saveNewEGO(builder.buildEGOData());
-        return true;
+        builder.setPortraitFile(awakeningPortrait.attr("alt"));
     }
 
-    private static void scrapeSanityCost(DTOBuilders.EGODataBuilder builder, Element dataRow, boolean isOverclocked) {
+    private static void scrapeSanityCost(DTOBuilders.EGODataBuilder builder, Element dataRow, boolean isOverclocked)
+    {
         int sanityValue = Integer.parseInt(dataRow.text());
         if(isOverclocked)
         {
@@ -581,9 +609,8 @@ public class WikimediaScraper
 
     // TODO Rozbić na mniejsze metody, pamiętaj o SINGLE RESPONSIBILITY PRINCIPLE
     // TODO dodaj zbieranie status effectów
-    private static ScraperDataDTOs.Ability processSingleAbility(Element abilityContainer, DTOBuilders.BaseEquippableBuilder<?> builder, DTOBuilders.AbilityDataBuilder abilityBuilder)
+    private UUID processSingleAbility(Element abilityContainer, DTOBuilders.BaseEquippableBuilder<?> builder, DTOBuilders.AbilityDataBuilder abilityBuilder)
     {
-
         // Żebym wiedział, co się dzieje
         String skillSlot = abilityContainer.id();
         abilityBuilder.setSkillSlot(skillSlot);
@@ -597,79 +624,30 @@ public class WikimediaScraper
                     return new Elements();
                 });
 
-        // Z racji, że wiemy, że zawsze będziemy mieć daną kolejnośc kolumn,
+        // Z racji, że wiemy, że zawsze będziemy mieć daną kolejność kolumn,
         // możemy działać po kolejności pojawienia się
         Element leftAbilityPanel = extractElementFromSpecifiedIndex(columns, 0);
 
-        // W razie, że nic nie dostaniemy, lepsze coś niż null
-        abilityBuilder.setSinAffinity("NO SIN AFFINITY FOUND");
-        for (Element image : leftAbilityPanel.select("img"))
-        {
-            String altText = image.attr("alt");
-            if (iconWhiteList.contains(altText))
-            {
-                abilityBuilder.setSinAffinity(altText);
-                System.out.println("Sin affinity: " + altText.replace(".png", ""));
-            }
-        }
-        Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");
-        scrapeImageURL(skillIcon);
-        String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
-        abilityBuilder.setSkillIconFile(skillIconFile);
-        System.out.println(skillIconFile.replace(".png", ""));
-
-        Elements abilityPowers = leftAbilityPanel.select("b");
-        Element basePowerElement = extractElementFromSpecifiedIndex(abilityPowers, 0);
-        // w Jsoup '>' oznacza bezpośrednie dziecko
-        Element damageTypeElement = leftAbilityPanel.selectFirst("> img");
-        Element coinPowerElement = extractElementFromSpecifiedIndex(abilityPowers, 1);
-
-        String damageType = damageTypeElement != null ? damageTypeElement.attr("alt") : "NO DAMAGE TYPE ICON FOUND";
-        abilityBuilder.setBasePower(Integer.parseInt(basePowerElement.text()));
-        System.out.println("Base power: " + basePowerElement.text());
-        abilityBuilder.setDamageType(damageType);
-        System.out.println("Damage type: " + damageType.replace(".png", ""));
-        abilityBuilder.setCoinPower(coinPowerElement.text());
-        System.out.println("Coin power: " + coinPowerElement.text());
+        scrapeSinAffinity(abilityBuilder, leftAbilityPanel);
+        scrapeSkillIcon(abilityBuilder, leftAbilityPanel);
+        scrapePower(abilityBuilder, leftAbilityPanel);
+        scrapeDamageType(abilityBuilder, leftAbilityPanel);
 
         Element rightAbilityPanel = extractElementFromSpecifiedIndex(columns, 1);
-        int coinCount = 0;
-        for (Element image : rightAbilityPanel.select("img"))
-        {
-            if (image.attr("alt").contains("Coin"))
-            {
-                coinCount += 1;
-            }
-            else
-            {
-                break;
-            }
-        }
-        abilityBuilder.setCoinCount(coinCount);
-        System.out.println("Coin count: " + coinCount);
 
-        Element abilityNameElement = rightAbilityPanel.selectFirst("div span");
-        String abilityName = abilityNameElement != null ? abilityNameElement.text() : "NO ABILITY NAME";
-        abilityBuilder.setAbilityName(abilityName);
-        System.out.println("Ability name: " + abilityName);
+        scrapeCoinCount(abilityBuilder, rightAbilityPanel);
+        scrapeAbilityName(abilityBuilder, rightAbilityPanel);
+        scrapeAttackWeight(abilityBuilder, rightAbilityPanel);
+        scrapeOffenseLevel(abilityBuilder, rightAbilityPanel);
+        scrapeEffects(abilityBuilder, rightAbilityPanel);
 
-        Element attackWeightElement = rightAbilityPanel.selectFirst("font");
-        String attackWeight = attackWeightElement != null ?
-                attackWeightElement.text().replace("Atk Weight ", "") : "NO ATTACK WEIGHT";
-        abilityBuilder.setAttackWeight(attackWeight);
-        System.out.println("Attack weight: "  + attackWeight);
+        // TODO Powinienem tutaj bezpośrednio budować umiejętnośc do DB, a do DTO zwykle dodać jej klucz główny
+        ScraperDataDTOs.Ability builtAbility = abilityBuilder.buildAbilityData();
+        return abilityService.saveNewAbility(builtAbility);
+    }
 
-        // Powinno być bezpieczniejsze, ale nie wiem, czy nie znacznie wolniejsze
-        String offenseLevel = rightAbilityPanel.textNodes().stream()
-                        .map(tn -> tn.text().trim())
-                        .filter(t -> t.matches(".*[+-]\\d+.*"))
-                        .findFirst()
-                        .map(t -> t.replaceAll(".*([+-]\\d+).*", "$1"))
-                        .orElse("0");
-
-        abilityBuilder.setOffenseLevel(offenseLevel);
-        System.out.println("Offense level: " + offenseLevel);
-
+    // FIXME Nie ma base effects dla https://limbuscompany.wiki.gg/wiki/9:2_Sinclair
+    private static void scrapeEffects(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
         ScraperNodeVisitors.AbilityResult result = ScraperNodeVisitors.extractAbility(rightAbilityPanel);
 
         abilityBuilder.setBaseEffects(result.baseEffects());
@@ -689,11 +667,91 @@ public class WikimediaScraper
             System.out.println("Coin " + coinNum + " effects: ");
             effects.forEach(effect -> System.out.println("- " + effect));
         });
+    }
 
-        // TODO Powinienem tutaj bezpośrednio budować umiejętnośc do DB, a do DTO zwykle dodać jej klucz główny
-        ScraperDataDTOs.Ability builtAbility = abilityBuilder.buildAbilityData();
-        builder.addAbility(builtAbility);
-        return builtAbility;
+    private static void scrapeOffenseLevel(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+        String offenseLevel = rightAbilityPanel.textNodes().stream()
+                        .map(tn -> tn.text().trim())
+                        .filter(t -> t.matches(".*[+-]\\d+.*"))
+                        .findFirst()
+                        .map(t -> t.replaceAll(".*([+-]\\d+).*", "$1"))
+                        .orElse("0");
+        abilityBuilder.setOffenseLevel(offenseLevel);
+        System.out.println("Offense level: " + offenseLevel);
+    }
+
+    private static void scrapeAttackWeight(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+        Element attackWeightElement = rightAbilityPanel.selectFirst("font");
+        String attackWeight = attackWeightElement != null ?
+                attackWeightElement.text().replace("Atk Weight ", "") : "NO ATTACK WEIGHT";
+        abilityBuilder.setAttackWeight(attackWeight);
+        System.out.println("Attack weight: "  + attackWeight);
+    }
+
+    private static void scrapeAbilityName(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+        Element abilityNameElement = rightAbilityPanel.selectFirst("div span");
+        String abilityName = abilityNameElement != null ? abilityNameElement.text() : "NO ABILITY NAME";
+        abilityBuilder.setAbilityName(abilityName);
+        System.out.println("Ability name: " + abilityName);
+    }
+
+    private static void scrapeCoinCount(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+        int coinCount = 0;
+        for (Element image : rightAbilityPanel.select("img"))
+        {
+            if (image.attr("alt").contains("Coin"))
+            {
+                coinCount += 1;
+            }
+            else
+            {
+                break;
+            }
+        }
+        abilityBuilder.setCoinCount(coinCount);
+        System.out.println("Coin count: " + coinCount);
+    }
+
+    private static void scrapeDamageType(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel) {
+        // w Jsoup '>' oznacza bezpośrednie dziecko
+        Element damageTypeElement = leftAbilityPanel.selectFirst("> img");
+        String damageType = damageTypeElement != null ? damageTypeElement.attr("alt") : "NO DAMAGE TYPE ICON FOUND";
+        abilityBuilder.setDamageType(damageType);
+        System.out.println("Damage type: " + damageType.replace(".png", ""));
+    }
+
+    private static void scrapePower(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel) {
+        Elements abilityPowers = leftAbilityPanel.select("b");
+        Element basePowerElement = extractElementFromSpecifiedIndex(abilityPowers, 0);
+        abilityBuilder.setBasePower(Integer.parseInt(basePowerElement.text()));
+        System.out.println("Base power: " + basePowerElement.text());
+
+        Element coinPowerElement = extractElementFromSpecifiedIndex(abilityPowers, 1);
+        abilityBuilder.setCoinPower(coinPowerElement.text());
+        System.out.println("Coin power: " + coinPowerElement.text());
+    }
+
+    private static void scrapeSkillIcon(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel) {
+        Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");
+        scrapeImageURL(skillIcon);
+        String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
+        abilityBuilder.setSkillIconFile(skillIconFile);
+        System.out.println(skillIconFile.replace(".png", ""));
+    }
+
+    private static void scrapeSinAffinity(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
+    {
+        // W razie, że nic nie dostaniemy, lepsze coś niż null
+        abilityBuilder.setSinAffinity("NO SIN AFFINITY FOUND");
+        for (Element image : leftAbilityPanel.select("img"))
+        {
+            String altText = image.attr("alt");
+            if (iconWhiteList.contains(altText))
+            {
+                abilityBuilder.setSinAffinity(altText);
+                System.out.println("Sin affinity: " + altText.replace(".png", ""));
+            }
+        }
     }
 
     private static Element extractElementFromSpecifiedIndex(Elements columns, int columnIndex)

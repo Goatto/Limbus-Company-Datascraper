@@ -78,11 +78,5 @@ public class EGOEntity
         abilities.add(ability);
         ability.setEgo(this);
     }
-
-    public void removeAbility(AbilityEntity ability)
-    {
-        abilities.remove(ability);
-        ability.setEgo(null);
-    }
 }
 

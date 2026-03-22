@@ -3,20 +3,23 @@ package dataProcessing.services;
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.AbilityEntity;
 import dataProcessing.models.EGOEntity;
+import dataProcessing.repositories.AbilityRepository;
 import dataProcessing.repositories.EGORepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 @Service
 public class EGOService
 {
     private final EGORepository egoRepository;
-    private final AbilityService abilityService;
+    private final AbilityRepository abilityRepository;
 
-    public EGOService(EGORepository egoRepository, AbilityService abilityService)
+    public EGOService(EGORepository egoRepository, AbilityService abilityService, AbilityRepository abilityRepository)
     {
         this.egoRepository = egoRepository;
-        this.abilityService = abilityService;
+        this.abilityRepository = abilityRepository;
     }
 
     @Transactional
@@ -38,10 +41,9 @@ public class EGOService
         egoEntity.setAwakenSinCost(newEGO.awakenSinCost());
         egoEntity.setCorrosionSinCost(newEGO.corrosionSinCost());
 
-        // TODO zamienić to na dodawanie przez identyfikatory
-        for(ScraperDataDTOs.Ability abilityDTO : newEGO.abilities())
+        for(UUID uuid : newEGO.abilities())
         {
-            AbilityEntity savedAbility = abilityService.saveNewAbility(abilityDTO);
+            AbilityEntity savedAbility = abilityRepository.getReferenceById(uuid);
             egoEntity.addAbility(savedAbility);
         }
 
