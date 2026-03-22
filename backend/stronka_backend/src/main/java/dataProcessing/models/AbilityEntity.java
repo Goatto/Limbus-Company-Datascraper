@@ -1,5 +1,6 @@
 package dataProcessing.models;
 
+import dataProcessing.models.join_tables.AbilityStatusEffects;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -60,18 +61,8 @@ public class AbilityEntity
     @Column(name = "coin_effects", nullable = false)
     private Map<String, List<String>> coinEffects = new HashMap<>();
 
-    // Tu akurat mogę zrobić ManyToMany z racji, że wiele umiejętności może mieć wiele status-effect'ów
-    @ManyToMany
-    // Oznaczenie tworzące trzecią tabelę pośrednią
-    @JoinTable(
-            // Nazwa naszej nowej tabeli
-            name ="ability_status-effects",
-            // Kolumna wskazująca na nas, np. nasze ID
-            joinColumns = @JoinColumn(name = "ability_id"),
-            // Kolumna wskazująca na ID encji, która zbiera 'nas'
-            inverseJoinColumns = @JoinColumn(name = "status_effect_id")
-    )
-    private List<StatusEffectEntity> statusEffects = new ArrayList<>();
+    @OneToMany(mappedBy = "ability", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AbilityStatusEffects> statusEffects = new ArrayList<>();
 
     // @ManyToOne to odzwierciedlenie kolumny w bazie
     // FetchType.Lazy to parametr fetch, który oznacza, że dane będą pobrane tylko, gdy je wywołamy, np. poprzez foo.getBar

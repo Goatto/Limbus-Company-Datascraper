@@ -15,7 +15,7 @@ public class DTOBuilders
         protected String releaseDate;
 
         protected List<UUID> abilities = new ArrayList<>();
-        protected List<ScraperDataDTOs.Passive> combatPassives = new ArrayList<>();
+        protected List<UUID> combatPassives = new ArrayList<>();
         protected Map<String, Double> resistances = new HashMap<>();
         // TODO Pomyśl o dodaniu tu combat passives
 
@@ -57,7 +57,7 @@ public class DTOBuilders
             return self();
         }
 
-        public T addCombatPassive(ScraperDataDTOs.Passive combatPassive)
+        public T addCombatPassive(UUID combatPassive)
         {
             this.combatPassives.add(combatPassive);
             return self();
@@ -77,7 +77,7 @@ public class DTOBuilders
         private int health;
         private String speed;
         private int defenseLevel;
-        private ScraperDataDTOs.Passive supportPassive;
+        private UUID supportPassive;
 
         private final List<String> traits = new ArrayList<>();
         private final List<String> staggerThresholds = new ArrayList<>();
@@ -127,7 +127,7 @@ public class DTOBuilders
             return this;
         }
 
-        public IDDataBuilder setSupportPassive(ScraperDataDTOs.Passive supportPassive)
+        public IDDataBuilder setSupportPassive(UUID supportPassive)
         {
             this.supportPassive = supportPassive;
             return this;
@@ -332,9 +332,9 @@ public class DTOBuilders
             return this;
         }
 
-        public AbilityDataBuilder addStatusEffect(String statusEffect)
+        public AbilityDataBuilder setStatusEffect(Set<String> statusEffect)
         {
-            this.statusEffects.add(statusEffect);
+            this.statusEffects = statusEffect;
             return this;
         }
 

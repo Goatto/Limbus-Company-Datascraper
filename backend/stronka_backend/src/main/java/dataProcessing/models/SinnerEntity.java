@@ -1,13 +1,14 @@
 package dataProcessing.models;
 
-import dataProcessing.ScraperDataDTOs;
+import dataProcessing.models.join_tables.SinnerEGO;
+import dataProcessing.models.join_tables.SinnerID;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -20,15 +21,11 @@ public class SinnerEntity
     @Column(name = "name", nullable = false)
     private String name;
 
-    // Tu będę musiał zrobić OneToMany z racji że jeden sinner ma wiele ID/EGO, a nie w drugą stronę
-    /*
-    @Column(name = "ids", nullable = true)
-    @OneToMany(mappedBy = "id")
-    // TODO, zamiast rekordu musisz użyć encji
-    private Set<ScraperDataDTOs.IDData> IDs = new HashSet<>();
 
-    @Column(name = "egos", nullable = true)
-    @OneToMany
-    private Set<ScraperDataDTOs.EGOData> EGOs = new HashSet<>();
-     */
+    @OneToMany(mappedBy = "sinner", cascade = CascadeType.ALL, orphanRemoval = true)
+    // TODO, zamiast rekordu musisz użyć encji
+    private List<SinnerID> IDs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "sinner", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SinnerEGO> EGOs = new ArrayList<>();
 }

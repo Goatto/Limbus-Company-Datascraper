@@ -76,7 +76,7 @@ public class ScraperNodeVisitors
                     }
                     else if (!altText.isEmpty())
                     {
-                        statusEffectsBuffer.add(altText.replace(".png", "").trim());
+                        statusEffectsBuffer.add(altText.trim());
                     }
                 }
                 default -> {}
@@ -280,10 +280,14 @@ public class ScraperNodeVisitors
                 {
                     saveCurrentLine();
                 }
-                else if(element.tagName().equals("img") && !element.attr("alt").contains("oin.png")
-                && !element.attr("alt").contains("CoinEffect") && !element.attr("alt").contains("SkillAttack"))
+                // TODO Lepiej to zaimplementować
+                else if(element.tagName().equals("img"))
                 {
-                    statusEffects.add(element.attr("alt").replace(".png", "").trim());
+                    String statusEffect = element.attr("alt").trim();
+                    if(!statusEffect.isEmpty())
+                    {
+                        statusEffects.add(statusEffect);
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package dataProcessing.webScraper;
 
+import dataProcessing.services.SinnerService;
 import org.jsoup.nodes.Document;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,13 @@ public class ScraperRunner implements CommandLineRunner
 {
     private final StatusEffectsScraping statusEffectsScraper;
     private final DataOperator dataOperator;
+    private final SinnerService sinnerService;
 
-    public ScraperRunner(StatusEffectsScraping statusEffectsScraper, DataOperator dataOperator)
+    public ScraperRunner(StatusEffectsScraping statusEffectsScraper, DataOperator dataOperator, SinnerService sinnerService)
     {
         this.statusEffectsScraper = statusEffectsScraper;
         this.dataOperator = dataOperator;
+        this.sinnerService = sinnerService;
     }
 
     @Override
@@ -38,7 +41,7 @@ public class ScraperRunner implements CommandLineRunner
                 // Później jakoś osobno będę musiał przejść przez https://limbuscompany.wiki.gg/wiki/Status_Effects
                 // Teoretycznie mogę zrobić Listę list, i działać na indeksach, ale wydaje się to trochę głupie
                 List<String> urls = List.of(
-                            //("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
+                            ("https://limbuscompany.wiki.gg/wiki/Category:Identities"),
                             ("https://limbuscompany.wiki.gg/wiki/Category:E.G.O"));
 
                 List<String> genericAssetScraper = List.of(
@@ -56,9 +59,9 @@ public class ScraperRunner implements CommandLineRunner
 
                 // Odpowiednie za zbieranie 'statycznych danych' i.e. takich danych, które wielokrotnie pojawiają się
                 // na różnych stronkach, głównie wykorzystane do pobrania ikonek status effectów
+
                 System.out.println("Scraping status effects: ");
                 Document selectedPage = scrapeData(statusEffects);
-                /*
                 if(selectedPage != null)
                 {
                     statusEffectsScraper.scrapeStatusEffectData(selectedPage);
@@ -79,7 +82,6 @@ public class ScraperRunner implements CommandLineRunner
                     catch (InterruptedException _) {}
                 }
 
-                 */
                 // Wyłapanie wszystkich linków z dwóch głównych katalogów
                 List<String> urlLists = linkScraper(urls);
                 for(String urlDocument : urlLists)
@@ -96,7 +98,7 @@ public class ScraperRunner implements CommandLineRunner
                     }
                     catch (InterruptedException _) {}
                 }
-
+                sinnerService.buildSinners();
             }
             catch (Throwable t)
             {

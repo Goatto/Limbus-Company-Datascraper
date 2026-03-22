@@ -57,7 +57,7 @@ public class ScraperDataDTOs
             int health,
             String speed,
             int defenseLevel,
-            Passive supportPassive,
+            UUID supportPassive,
 
             List<String> traits,
             List<String> staggerThresholds,
@@ -66,7 +66,7 @@ public class ScraperDataDTOs
             List<String> positiveSanityEffects,
             List<String> negativeSanityEffects,
             List<UUID> abilities,
-            List<Passive> combatPassives
+            List<UUID> combatPassives
     ){}
 
     /**
@@ -106,7 +106,7 @@ public class ScraperDataDTOs
         Map<String, Integer> awakenSinCost,
         Map<String, Integer> corrosionSinCost,
         List<UUID> abilities,
-        List<Passive> combatPassives
+        List<UUID> combatPassives
 
 
     ){}

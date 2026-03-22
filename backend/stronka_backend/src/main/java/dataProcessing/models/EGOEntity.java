@@ -1,6 +1,8 @@
 package dataProcessing.models;
 
 import dataProcessing.ScraperDataDTOs;
+import dataProcessing.models.join_tables.EGOAbility;
+import dataProcessing.models.join_tables.EGOPassive;
 import dataProcessing.webScraper.enums.Tiers;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -17,12 +19,15 @@ import java.util.Map;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "sinner_egos", schema = "public")
+@Table(name = "ego", schema = "public")
 public class EGOEntity
 {
     @Id
     @Column(name = "name", nullable = false)
     private String name;
+
+    @Column(name = "sinner", nullable = false)
+    private String sinner;
 
     @Column(name = "portrait_file", nullable = true)
     private String portraitFile;
@@ -63,20 +68,10 @@ public class EGOEntity
     @Column(name = "corrosion_sin_cost", nullable = true)
     private Map<String, Integer> corrosionSinCost = new HashMap<>();
 
-    // Wirtualny widok wskazujący na wszystkie klucze obce wskazujące na nas
     @OneToMany(mappedBy = "ego", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<AbilityEntity> abilities = new ArrayList<>();
+    private List<EGOAbility> abilities = new ArrayList<>();
 
-    /*
-    @OneToMany(mappedBy = "passive")
-    @Column(name = "passives", nullable = true)
-    private List<PassiveEntity> combatPassive = new ArrayList<>();
-    */
-
-    public void addAbility(AbilityEntity ability)
-    {
-        abilities.add(ability);
-        ability.setEgo(this);
-    }
+    @OneToMany(mappedBy = "ego", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EGOPassive> combatPassive = new ArrayList<>();
 }
 

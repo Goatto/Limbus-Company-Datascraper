@@ -1,6 +1,9 @@
 package dataProcessing.webScraper;
 
 import dataProcessing.DTOBuilders;
+import dataProcessing.services.EGOService;
+import dataProcessing.services.IDService;
+import dataProcessing.services.SinnerService;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -16,11 +19,15 @@ import java.util.Map;
 public class DataOperator
 {
     private final WikimediaScraper wikimediaScraper;
+    private final EGOService EGOService;
+    private final IDService IDService;
     private static final int retryCount = 3;
 
-    public DataOperator(WikimediaScraper wikimediaScraper)
+    public DataOperator(WikimediaScraper wikimediaScraper, EGOService egoService, IDService idService)
     {
         this.wikimediaScraper = wikimediaScraper;
+        EGOService = egoService;
+        IDService = idService;
     }
 
     // Na razie do sprawdzenia jak zbiera się linki, później będę musiał to inaczej zrobić z racji,
@@ -81,8 +88,9 @@ public class DataOperator
                     break;
                 }
                 WikimediaScraper.scrapeSanityData(htmlContent, builder);
-                wikimediaScraper.scrapeIDAbilityData(htmlContent);
-                WikimediaScraper.scrapePassiveData(htmlContent, builder);
+                wikimediaScraper.scrapeIDAbilityData(htmlContent, builder);
+                wikimediaScraper.scrapePassiveData(htmlContent, builder);
+                IDService.saveNewID(builder.buildIDData());
             }
             else if (categoryText.equals("E.G.O"))
             {
@@ -93,7 +101,8 @@ public class DataOperator
                 {
                     break;
                 }
-                WikimediaScraper.scrapePassiveData(htmlContent, builder);
+                wikimediaScraper.scrapePassiveData(htmlContent, builder);
+                EGOService.saveNewEGO(builder.buildEGOData());
             }
             break;
         }
@@ -118,7 +127,7 @@ public class DataOperator
             {
                 System.out.println("Attempt " + (currentAttemptCount + 1) + " to scrape " + url);
                 Document document = Jsoup.connect(url)
-                        .timeout(5000)
+                        .timeout(8000)
                         .headers(jsoupHeaders)
                         .get();
                 System.out.println("Scraped " + url);
@@ -131,7 +140,7 @@ public class DataOperator
                 System.err.println("Attempt " + (currentAttemptCount + 1) + " failed at " + url + ": " + e.getMessage());
                 try
                 {
-                    Thread.sleep(5000);
+                    Thread.sleep(8000);
                 }
                 catch (InterruptedException _) {}
             }

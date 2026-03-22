@@ -38,11 +38,12 @@ public class StatusEffectEntity
     // Klucz główny
     @Id
     // Nazwa kolumny, jak i jej parametry
+    @Column(name = "icon", nullable = false)
+    private String icon;
+
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "icon", nullable = false)
-    private String icon;
 
     // Adnotacja @JdbcTypeCode(SqlTypes.JSON), wraz z parametrem columnDefinition = "jsonb" w definicji kolumny
     // Pozwalają na zamienienie naszych kolekcji na typ JSONB w PostreSQL

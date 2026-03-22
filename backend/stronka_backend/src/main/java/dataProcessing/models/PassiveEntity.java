@@ -1,5 +1,6 @@
 package dataProcessing.models;
 
+import dataProcessing.models.join_tables.PassiveStatusEffects;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -37,6 +38,6 @@ public class PassiveEntity
     private List<String> description = new ArrayList<>();
 
     // Tu akurat mogę zrobić ManyToMany z racji, że wiele pasywek może mieć wiele status-effect'ów
-    @ManyToMany
-    private List<StatusEffectEntity> statusEffects = new ArrayList<>();
+    @OneToMany(mappedBy = "passive")
+    private List<PassiveStatusEffects> statusEffects = new ArrayList<>();
 }

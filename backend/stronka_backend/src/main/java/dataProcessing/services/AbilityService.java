@@ -2,8 +2,11 @@ package dataProcessing.services;
 
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.AbilityEntity;
+import dataProcessing.models.join_tables.AbilityStatusEffects;
+import dataProcessing.models.join_tables.AbilityStatusEffectsID;
 import dataProcessing.models.StatusEffectEntity;
 import dataProcessing.repositories.AbilityRepository;
+import dataProcessing.repositories.join_tables.AbilityStatusEffectsRepository;
 import dataProcessing.repositories.StatusEffectRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -15,11 +18,13 @@ public class AbilityService
 {
     private final AbilityRepository abilityRepository;
     private final StatusEffectRepository statusEffectRepository;
+    private final AbilityStatusEffectsRepository abilityStatusEffectsRepository;
 
-    public AbilityService(AbilityRepository abilityRepository, StatusEffectRepository statusEffectRepository)
+    public AbilityService(AbilityRepository abilityRepository, StatusEffectRepository statusEffectRepository, AbilityStatusEffectsRepository abilityStatusEffectsRepository)
     {
         this.abilityRepository = abilityRepository;
         this.statusEffectRepository = statusEffectRepository;
+        this.abilityStatusEffectsRepository = abilityStatusEffectsRepository;
     }
 
     // @Transactional - Jeżeli cały zapis nie odbędzie się poprawnie, nic nie zostanie zapisane
@@ -40,14 +45,23 @@ public class AbilityService
         abilityEntity.setOffenseLevel(newAbility.offenseLevel());
         abilityEntity.setBaseEffects(newAbility.baseEffects());
         abilityEntity.setCoinEffects(newAbility.coinEffects());
+        AbilityEntity savedEntity = abilityRepository.save(abilityEntity);
         for(String index : newAbility.statusEffects())
         {
+            if(statusEffectRepository.findById(index).isEmpty())
+            {
+                System.out.println("NIE ZNALEZIONO STATUS EFFECTU!");
+                continue;
+            }
             StatusEffectEntity savedStatusEffect = statusEffectRepository.getReferenceById(index);
-            // abilityEntity.stat
+            AbilityStatusEffects abilityStatusEffects = new AbilityStatusEffects();
+            abilityStatusEffects.setId(new AbilityStatusEffectsID(savedEntity.getId(), index));
+            abilityStatusEffects.setAbility(savedEntity);
+            abilityStatusEffects.setStatusEffect(savedStatusEffect);
+            AbilityStatusEffects savedAbilityStatusEffect = abilityStatusEffectsRepository.save(abilityStatusEffects);
+            savedEntity.getStatusEffects().add(savedAbilityStatusEffect);
         }
-
-
-        AbilityEntity savedEntity = abilityRepository.save(abilityEntity);
+        savedEntity = abilityRepository.save(savedEntity);
 
         return savedEntity.getId();
     }

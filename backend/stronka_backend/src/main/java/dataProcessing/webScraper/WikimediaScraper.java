@@ -4,6 +4,7 @@ import dataProcessing.DTOBuilders;
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.services.AbilityService;
 import dataProcessing.services.EGOService;
+import dataProcessing.services.PassiveService;
 import dataProcessing.webScraper.enums.Tiers;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -33,12 +34,12 @@ public class WikimediaScraper
     static String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
 
     private final AbilityService abilityService;
-    private final EGOService EGOService;
+    private final PassiveService passiveService;
 
-    public WikimediaScraper(AbilityService abilityService, EGOService EGOService)
+    public WikimediaScraper(AbilityService abilityService, EGOService EGOService, PassiveService passiveService)
     {
         this.abilityService = abilityService;
-        this.EGOService = EGOService;
+        this.passiveService = passiveService;
     }
 
     // FIXME Nie radzi sobię z LCB Sinner ID
@@ -55,7 +56,9 @@ public class WikimediaScraper
         {
             return null;
         }
-        builder.setPortraitFile(scrapeImageURL(smallSelector));
+        System.out.println("Portrait: " + smallSelector.attr("alt"));
+        builder.setPortraitFile(smallSelector.attr("alt"));
+        scrapeImageURL(smallSelector);
         Elements largeSelector = htmlContent.select("#General_Info-0 table tr");
         for (Element row : largeSelector)
         {
@@ -204,10 +207,8 @@ public class WikimediaScraper
     }
 
     // TODO jeżeli chcę dodać wstawianie umiejętności do db, musiałbym tutaj nad tym operować
-    public List<ScraperDataDTOs.Ability> scrapeIDAbilityData(Document htmlContent)
+    public void scrapeIDAbilityData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
-        List<ScraperDataDTOs.Ability> abilities = new ArrayList<>();
-
         Elements largeSelector = htmlContent.select(".tabber .tabber__section [id^=Skill_1-], "
                 + ".tabber .tabber__section [id^=Skill_1_]:not([id$=label]), "
                 + ".tabber .tabber__section [id^=Skill_2-], "
@@ -224,14 +225,14 @@ public class WikimediaScraper
                 continue;
             }
             // TODO tutaj chyba odbywało by się dodawanie
-           processSingleAbility(element, new DTOBuilders.IDDataBuilder(), new DTOBuilders.AbilityDataBuilder());
+           builder.addAbility(processSingleAbility(element, new DTOBuilders.AbilityDataBuilder()));
         }
-        return abilities;
     }
 
     // TODO Dodać dodawanie pasywek do DB
-    public static void scrapePassiveData(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder)
+    public void scrapePassiveData(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder)
     {
+
         // Ciekawy styl jest z tym b:contains...
         Elements prePassiveHeaders = htmlContent.select("b:contains(Passive), "
                 + "b:contains(Combat Passives), b:contains(Support Passive), b:contains(Passives)");
@@ -279,7 +280,7 @@ public class WikimediaScraper
             {
                 // TODO Dodać tu buildera pasywek
                 ScraperDataDTOs.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
-
+                UUID uuid = passiveService.saveNewPassive(passive);
                 switch(passiveCategory)
                 {
                     // TODO To chyba mogę jakoś poprawić
@@ -287,19 +288,19 @@ public class WikimediaScraper
                     {
                         if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
                         {
-                            idBuilder.addCombatPassive(passive);
+                            idBuilder.addCombatPassive(uuid);
 
                         }
                         else if(builder instanceof DTOBuilders.EGODataBuilder egoBuilder)
                         {
-                            egoBuilder.addCombatPassive(passive);
+                            egoBuilder.addCombatPassive(uuid);
                         }
                     }
                     case "SUPPORT_PASSIVE" ->
                     {
                         if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
                         {
-                            idBuilder.setSupportPassive(passive);
+                            idBuilder.setSupportPassive(uuid);
                         }
                     }
                 }
@@ -393,7 +394,6 @@ public class WikimediaScraper
         scrapeEGOInformation(htmlContent, builder, abilityBuilder, hasNoCorrosion);
         scrapeEGOPortraits(htmlContent, builder, hasNoCorrosion);
 
-        EGOService.saveNewEGO(builder.buildEGOData());
         return true;
     }
 
@@ -409,14 +409,14 @@ public class WikimediaScraper
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            builder.addAbility(processSingleAbility(awakeningInformation, builder, abilityBuilder));
+            builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder));
 
             abilityBuilder.setSkillSlot("2");
             Element corrosionInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            builder.addAbility(processSingleAbility(corrosionInformation, builder, abilityBuilder));
+            builder.addAbility(processSingleAbility(corrosionInformation, abilityBuilder));
         }
         else
         {
@@ -424,7 +424,7 @@ public class WikimediaScraper
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            builder.addAbility(processSingleAbility(awakeningInformation, builder, abilityBuilder));
+            builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder));
         }
     }
 
@@ -609,7 +609,7 @@ public class WikimediaScraper
 
     // TODO Rozbić na mniejsze metody, pamiętaj o SINGLE RESPONSIBILITY PRINCIPLE
     // TODO dodaj zbieranie status effectów
-    private UUID processSingleAbility(Element abilityContainer, DTOBuilders.BaseEquippableBuilder<?> builder, DTOBuilders.AbilityDataBuilder abilityBuilder)
+    private UUID processSingleAbility(Element abilityContainer, DTOBuilders.AbilityDataBuilder abilityBuilder)
     {
         // Żebym wiedział, co się dzieje
         String skillSlot = abilityContainer.id();
@@ -647,7 +647,9 @@ public class WikimediaScraper
     }
 
     // FIXME Nie ma base effects dla https://limbuscompany.wiki.gg/wiki/9:2_Sinclair
-    private static void scrapeEffects(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+    // Spowodowane tym że mają w tekście znak +
+    private static void scrapeEffects(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
+    {
         ScraperNodeVisitors.AbilityResult result = ScraperNodeVisitors.extractAbility(rightAbilityPanel);
 
         abilityBuilder.setBaseEffects(result.baseEffects());
@@ -662,6 +664,7 @@ public class WikimediaScraper
         }
 
         abilityBuilder.setCoinEffect(result.coinEffects());
+        abilityBuilder.setStatusEffect(result.statusEffects());
         result.coinEffects().forEach((coinNum, effects) ->
         {
             System.out.println("Coin " + coinNum + " effects: ");
@@ -669,7 +672,8 @@ public class WikimediaScraper
         });
     }
 
-    private static void scrapeOffenseLevel(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+    private static void scrapeOffenseLevel(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
+    {
         String offenseLevel = rightAbilityPanel.textNodes().stream()
                         .map(tn -> tn.text().trim())
                         .filter(t -> t.matches(".*[+-]\\d+.*"))
@@ -680,7 +684,8 @@ public class WikimediaScraper
         System.out.println("Offense level: " + offenseLevel);
     }
 
-    private static void scrapeAttackWeight(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+    private static void scrapeAttackWeight(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
+    {
         Element attackWeightElement = rightAbilityPanel.selectFirst("font");
         String attackWeight = attackWeightElement != null ?
                 attackWeightElement.text().replace("Atk Weight ", "") : "NO ATTACK WEIGHT";
@@ -688,14 +693,16 @@ public class WikimediaScraper
         System.out.println("Attack weight: "  + attackWeight);
     }
 
-    private static void scrapeAbilityName(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+    private static void scrapeAbilityName(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
+    {
         Element abilityNameElement = rightAbilityPanel.selectFirst("div span");
         String abilityName = abilityNameElement != null ? abilityNameElement.text() : "NO ABILITY NAME";
         abilityBuilder.setAbilityName(abilityName);
         System.out.println("Ability name: " + abilityName);
     }
 
-    private static void scrapeCoinCount(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel) {
+    private static void scrapeCoinCount(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
+    {
         int coinCount = 0;
         for (Element image : rightAbilityPanel.select("img"))
         {
@@ -712,7 +719,8 @@ public class WikimediaScraper
         System.out.println("Coin count: " + coinCount);
     }
 
-    private static void scrapeDamageType(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel) {
+    private static void scrapeDamageType(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
+    {
         // w Jsoup '>' oznacza bezpośrednie dziecko
         Element damageTypeElement = leftAbilityPanel.selectFirst("> img");
         String damageType = damageTypeElement != null ? damageTypeElement.attr("alt") : "NO DAMAGE TYPE ICON FOUND";
@@ -720,7 +728,8 @@ public class WikimediaScraper
         System.out.println("Damage type: " + damageType.replace(".png", ""));
     }
 
-    private static void scrapePower(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel) {
+    private static void scrapePower(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
+    {
         Elements abilityPowers = leftAbilityPanel.select("b");
         Element basePowerElement = extractElementFromSpecifiedIndex(abilityPowers, 0);
         abilityBuilder.setBasePower(Integer.parseInt(basePowerElement.text()));
@@ -731,7 +740,8 @@ public class WikimediaScraper
         System.out.println("Coin power: " + coinPowerElement.text());
     }
 
-    private static void scrapeSkillIcon(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel) {
+    private static void scrapeSkillIcon(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
+    {
         Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");
         scrapeImageURL(skillIcon);
         String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
