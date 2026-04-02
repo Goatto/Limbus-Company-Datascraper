@@ -63,13 +63,4 @@ public class AbilityEntity
 
     @OneToMany(mappedBy = "ability", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AbilityStatusEffects> statusEffects = new ArrayList<>();
-
-    // @ManyToOne to odzwierciedlenie kolumny w bazie
-    // FetchType.Lazy to parametr fetch, który oznacza, że dane będą pobrane tylko, gdy je wywołamy, np. poprzez foo.getBar
-    @ManyToOne(fetch = FetchType.LAZY)
-    // JoinColumn określa nazwę kolumny z kluczem obcym
-    @JoinColumn(name = "ego_name")
-    private EGOEntity ego;
-
-
 }

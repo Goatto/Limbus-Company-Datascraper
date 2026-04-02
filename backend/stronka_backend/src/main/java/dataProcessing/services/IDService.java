@@ -28,7 +28,8 @@ public class IDService
     private final IDAbilityRepository idAbilityRepository;
 
 
-    public IDService(IDRepository idRepository, AbilityRepository abilityRepository, PassiveRepository passiveRepository, IDPassiveRepository idPassiveRepository, IDAbilityRepository idAbilityRepository)
+    public IDService(IDRepository idRepository, AbilityRepository abilityRepository, PassiveRepository passiveRepository,
+                     IDPassiveRepository idPassiveRepository, IDAbilityRepository idAbilityRepository)
     {
         this.idRepository = idRepository;
         this.abilityRepository = abilityRepository;
@@ -39,6 +40,34 @@ public class IDService
 
     @Transactional
     public void saveNewID(ScraperDataDTOs.IDData newID)
+    {
+        IDEntity idEntity = setBasicInformation(newID);
+        IDEntity savedEntity = idRepository.save(idEntity);
+        for(UUID uuid : newID.combatPassives())
+        {
+            getPassives(savedEntity, uuid);
+        }
+
+        for(UUID uuid : newID.supportPassives())
+        {
+            getPassives(savedEntity, uuid);
+        }
+
+        for(UUID uuid : newID.abilities())
+        {
+            AbilityEntity savedAbility = abilityRepository.getReferenceById(uuid);
+            IDAbility idAbility = new IDAbility();
+            idAbility.setId(new IDAbilityID(savedEntity.getName(), uuid));
+            idAbility.setIdName(savedEntity);
+            idAbility.setAbility(savedAbility);
+            IDAbility savedIDAbility = idAbilityRepository.save(idAbility);
+            savedEntity.getAbilities().add(savedIDAbility);
+        }
+
+        idRepository.save(savedEntity);
+    }
+
+    private static IDEntity setBasicInformation(ScraperDataDTOs.IDData newID)
     {
         IDEntity idEntity = new IDEntity();
 
@@ -58,32 +87,17 @@ public class IDService
         idEntity.setResistances(newID.resistances());
         idEntity.setPositiveSanityEffects(newID.positiveSanityEffects());
         idEntity.setNegativeSanityEffects(newID.negativeSanityEffects());
-        IDEntity savedEntity = idRepository.save(idEntity);
-        for(UUID uuid : newID.combatPassives())
-        {
-            PassiveEntity savedPassive = passiveRepository.getReferenceById(uuid);
-            IDPassive idPassive = new IDPassive();
-            idPassive.setId(new IDPassiveID(savedEntity.getName(), uuid));
-            idPassive.setIdName(savedEntity);
-            idPassive.setPassive(savedPassive);
-            IDPassive savedIDPassive = idPassiveRepository.save(idPassive);
-            savedEntity.getCombatPassive().add(savedIDPassive);
-        }
-        for(UUID uuid : newID.abilities())
-        {
-            AbilityEntity savedAbility = abilityRepository.getReferenceById(uuid);
-            IDAbility idAbility = new IDAbility();
-            idAbility.setId(new IDAbilityID(savedEntity.getName(), uuid));
-            idAbility.setIdName(savedEntity);
-            idAbility.setAbility(savedAbility);
-            IDAbility savedIDAbility = idAbilityRepository.save(idAbility);
-            savedEntity.getAbilities().add(savedIDAbility);
-        }
-        // abilities
+        return idEntity;
+    }
 
-
-        // idEntity.setSupportPassive();
-
-        idRepository.save(savedEntity);
+    private void getPassives(IDEntity savedEntity, UUID uuid)
+    {
+        PassiveEntity savedPassive = passiveRepository.getReferenceById(uuid);
+        IDPassive idPassive = new IDPassive();
+        idPassive.setId(new IDPassiveID(savedEntity.getName(), uuid));
+        idPassive.setIdName(savedEntity);
+        idPassive.setPassive(savedPassive);
+        IDPassive savedIDPassive = idPassiveRepository.save(idPassive);
+        savedEntity.getCombatPassive().add(savedIDPassive);
     }
 }

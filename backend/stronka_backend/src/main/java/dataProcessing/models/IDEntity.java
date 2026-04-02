@@ -81,11 +81,12 @@ public class IDEntity
     @OneToMany(mappedBy = "idName", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<IDAbility> abilities = new ArrayList<>();
 
+    // TODO Przeprojektować to, zamiast bawić się w różne pola, niech same Passive ma swój typ
     @OneToMany(mappedBy = "idName", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<IDPassive> combatPassive = new ArrayList<>();
 
-    @Column(name = "support_passive")
-    private UUID supportPassive;
+    @OneToMany(mappedBy = "idName", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<IDPassive> supportPassive;
 
     // Tutaj będzie nawiązanie do sinnera
     // private String sinnerName;

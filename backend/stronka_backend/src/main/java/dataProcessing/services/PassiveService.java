@@ -54,7 +54,6 @@ public class PassiveService
             savedEntity.getStatusEffects().add(savedPassiveStatusEffect);
         }
         savedEntity = passiveRepository.save(savedEntity);
-
         return savedEntity.getId();
 
     }

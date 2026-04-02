@@ -3,7 +3,6 @@ package dataProcessing.webScraper;
 import dataProcessing.DTOBuilders;
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.services.AbilityService;
-import dataProcessing.services.EGOService;
 import dataProcessing.services.PassiveService;
 import dataProcessing.webScraper.enums.Tiers;
 import org.jsoup.nodes.Document;
@@ -13,7 +12,10 @@ import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static dataProcessing.webScraper.utils.ImageScraper.scrapeImageURL;
 
@@ -28,7 +30,7 @@ public class WikimediaScraper
             "Pride1.png", "Pride2.png", "Pride3.png",
             "Envy1.png", "Envy2.png", "Envy3.png");
 
-    static List<String> sinnerWhiteList = List.of("Yi Sang", "Faust", "Don Quixote", "Ryōshū",
+    static List<String> sinnerWhiteList = List.of("Yi Sang", "Faust", "Don Quixote", "Ryōshū", "Ryoshu",
             "Meursault", "Hong Lu", "Heathcliff", "Ishmael", "Rodion", "Sinclair", "Outis", "Gregor");
 
     static String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
@@ -36,7 +38,7 @@ public class WikimediaScraper
     private final AbilityService abilityService;
     private final PassiveService passiveService;
 
-    public WikimediaScraper(AbilityService abilityService, EGOService EGOService, PassiveService passiveService)
+    public WikimediaScraper(AbilityService abilityService, PassiveService passiveService)
     {
         this.abilityService = abilityService;
         this.passiveService = passiveService;
@@ -54,15 +56,25 @@ public class WikimediaScraper
         // Pobieramy obrazek i od razu ustawiamy nazwę
         if(smallSelector == null)
         {
-            return null;
+            String url = htmlContent.location();
+            if(url.contains("LCB_Sinner"))
+            {
+                smallSelector = htmlContent.selectFirst(".ABMobile div[style*=margin:4px;text-align:center] a img");
+            }
+            else
+            {
+                return null;
+            }
         }
-        System.out.println("Portrait: " + smallSelector.attr("alt"));
-        builder.setPortraitFile(smallSelector.attr("alt"));
+        String portraitName = Optional.ofNullable(smallSelector)
+                        .map(element -> element.attr("alt"))
+                        .orElse("NO PORTRAIT");
+        System.out.println("Portrait: " + portraitName);
+        builder.setPortraitFile(portraitName);
         scrapeImageURL(smallSelector);
         Elements largeSelector = htmlContent.select("#General_Info-0 table tr");
         for (Element row : largeSelector)
         {
-            // Używane do zdobycia określonego elementu, nie chcę mi się tego inicjalizować milion razy
             Elements specifiedRow = row.select("td");
             int specifiedRowSize = specifiedRow.size();
             switch(specifiedRowSize)
@@ -86,18 +98,42 @@ public class WikimediaScraper
     private static void scrapeName(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder) {
         Element titleSelector = htmlContent.selectFirst(".mw-page-title-main");
         String unitTitle = (titleSelector != null) ? titleSelector.text() : "No title";
-        // TODO Wykombinować jakiś lepszy sposób na to
+
+        boolean sinnerFound = false;
         for(String sinner : sinnerWhiteList)
         {
             if(unitTitle.contains(sinner))
             {
                 System.out.println("Sinner: " + sinner);
                 builder.setSinnerName(sinner);
+                sinnerFound = true;
+                builder.setName(unitTitle);
+                System.out.println(unitTitle);
                 break;
             }
         }
-        builder.setName(unitTitle);
-        System.out.println(unitTitle);
+        if(!sinnerFound)
+        {
+            String url = htmlContent.location();
+            if(url.contains("/wiki/"))
+            {
+                url = url.substring(url.lastIndexOf("/wiki/") + 6);
+            }
+
+            String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+            String formattedName = decodedUrl.replace("_", " ");
+            System.out.println("BACKUP Title: " + formattedName);
+            builder.setName(formattedName);
+            for(String sinner : sinnerWhiteList)
+            {
+                if(formattedName.contains(sinner))
+                {
+                    System.out.println("BACKUP Sinner: " + sinner);
+                    builder.setSinnerName(sinner);
+                    break;
+                }
+            }
+        }
     }
 
     private static void scrapeStaggerThresholds(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
@@ -175,7 +211,7 @@ public class WikimediaScraper
     }
 
     // TODO Stworzyć osobnę DTO dla sanity
-    public static DTOBuilders.IDDataBuilder scrapeSanityData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
+    public static void scrapeSanityData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         Elements sanitySelector = htmlContent.select("#Sanity-0 table tr td div");
         for (Element sanitySection : sanitySelector)
@@ -203,7 +239,6 @@ public class WikimediaScraper
                 }
             }
         }
-        return builder;
     }
 
     // TODO jeżeli chcę dodać wstawianie umiejętności do db, musiałbym tutaj nad tym operować
@@ -300,7 +335,7 @@ public class WikimediaScraper
                     {
                         if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
                         {
-                            idBuilder.setSupportPassive(uuid);
+                            idBuilder.addSupportPassive(uuid);
                         }
                     }
                 }
@@ -312,9 +347,7 @@ public class WikimediaScraper
     // TODO Rozbić na mniejsze metody, pamiętaj o SINGLE RESPONSIBILITY PRINCIPLE
     public Object scrapeEGOAbilities(Document htmlContent, DTOBuilders.EGODataBuilder builder)
     {
-        // FIXME Brak tytułu dla https://limbuscompany.wiki.gg/wiki/To_Remain_Oneself_%E5%AE%81%E4%BD%9C%E5%90%BE_Hong_Lu
         scrapeName(htmlContent, builder);
-
         Element genericInformation = Optional.of(htmlContent)
                 .map(content -> content.selectFirst(".mw-body-content"))
                 .orElse(new Element("div"));
@@ -388,10 +421,8 @@ public class WikimediaScraper
         Element row = genericInformationResistances.child(1);
 
         parseResistances(row.text(), egoResistances, builder);
-        // FIXME EGO nie otrzymują skillslota w builderze dla ability
-        DTOBuilders.AbilityDataBuilder abilityBuilder = new DTOBuilders.AbilityDataBuilder();
-
-        scrapeEGOInformation(htmlContent, builder, abilityBuilder, hasNoCorrosion);
+        // TODO Znormalizować zapis skillslotow
+        scrapeEGOInformation(htmlContent, builder, hasNoCorrosion);
         scrapeEGOPortraits(htmlContent, builder, hasNoCorrosion);
 
         return true;
@@ -399,24 +430,25 @@ public class WikimediaScraper
 
     // TODO Pomyśl czy nie lepiej stworzyć nowego abilityBuildera zamiast robić to tak
     private void scrapeEGOInformation(Document htmlContent, DTOBuilders.EGODataBuilder builder,
-                                      DTOBuilders.AbilityDataBuilder abilityBuilder, boolean hasNoCorrosion)
+                                      boolean hasNoCorrosion)
     {
+        DTOBuilders.AbilityDataBuilder abilityBuilder = new DTOBuilders.AbilityDataBuilder();
         Element awakeningInformation;
-        abilityBuilder.setSkillSlot("1");
+        abilityBuilder.setSkillSlot("Skill_1");
         if(!hasNoCorrosion)
         {
             awakeningInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder));
+            builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder, true));
 
-            abilityBuilder.setSkillSlot("2");
+            abilityBuilder.setSkillSlot("Skill_2");
             Element corrosionInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            builder.addAbility(processSingleAbility(corrosionInformation, abilityBuilder));
+            builder.addAbility(processSingleAbility(corrosionInformation, abilityBuilder, true));
         }
         else
         {
@@ -424,7 +456,7 @@ public class WikimediaScraper
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:right]"))
                     .orElse(new Element("div"));
-            builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder));
+            builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder, true));
         }
     }
 
@@ -611,9 +643,17 @@ public class WikimediaScraper
     // TODO dodaj zbieranie status effectów
     private UUID processSingleAbility(Element abilityContainer, DTOBuilders.AbilityDataBuilder abilityBuilder)
     {
+        return processSingleAbility(abilityContainer, abilityBuilder, false);
+    }
+
+    private UUID processSingleAbility(Element abilityContainer, DTOBuilders.AbilityDataBuilder abilityBuilder, boolean isEgo)
+    {
         // Żebym wiedział, co się dzieje
         String skillSlot = abilityContainer.id();
-        abilityBuilder.setSkillSlot(skillSlot);
+        if(!isEgo)
+        {
+            abilityBuilder.setSkillSlot(skillSlot);
+        }
         System.out.println("\nPROCESSING: " + skillSlot);
 
         // Zwraca pusty pojemnik, jeżeli nie istnieje
@@ -646,8 +686,8 @@ public class WikimediaScraper
         return abilityService.saveNewAbility(builtAbility);
     }
 
-    // FIXME Nie ma base effects dla https://limbuscompany.wiki.gg/wiki/9:2_Sinclair
-    // Spowodowane tym że mają w tekście znak +
+    // FIXME Nie ma base effects dla wielu EGO
+    //  Spowodowane tym że mają w tekście znak +
     private static void scrapeEffects(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
     {
         ScraperNodeVisitors.AbilityResult result = ScraperNodeVisitors.extractAbility(rightAbilityPanel);
@@ -740,11 +780,20 @@ public class WikimediaScraper
         System.out.println("Coin power: " + coinPowerElement.text());
     }
 
+    // FIXME Nie może zebrać ikonki dla Counter który jest gluttony
     private static void scrapeSkillIcon(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
     {
         Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");
+        if(skillIcon == null)
+        {
+            String whitelistSelector = sinnerWhiteList.stream()
+                    .map(sinner -> "img[alt*=\"" + sinner + "\"]")
+                    .collect(Collectors.joining(", "));
+            skillIcon = leftAbilityPanel.selectFirst(whitelistSelector);
+        }
         scrapeImageURL(skillIcon);
         String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
+        skillIconFile = skillIconFile.replaceAll("[<>:\"/\\\\|?*]", "");
         abilityBuilder.setSkillIconFile(skillIconFile);
         System.out.println(skillIconFile.replace(".png", ""));
     }

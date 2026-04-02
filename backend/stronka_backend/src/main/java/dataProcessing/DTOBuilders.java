@@ -77,8 +77,8 @@ public class DTOBuilders
         private int health;
         private String speed;
         private int defenseLevel;
-        private UUID supportPassive;
 
+        private final List<UUID> supportPassives = new ArrayList<>();;
         private final List<String> traits = new ArrayList<>();
         private final List<String> staggerThresholds = new ArrayList<>();
         private final List<String> positiveSanityEffects = new ArrayList<>();
@@ -127,9 +127,9 @@ public class DTOBuilders
             return this;
         }
 
-        public IDDataBuilder setSupportPassive(UUID supportPassive)
+        public IDDataBuilder addSupportPassive(UUID supportPassive)
         {
-            this.supportPassive = supportPassive;
+            this.supportPassives.add(supportPassive);
             return this;
         }
 
@@ -161,7 +161,7 @@ public class DTOBuilders
         {
             return new ScraperDataDTOs.IDData(
                     name,sinnerName, portraitFile, rarity, world, worldFile, season, releaseDate,
-                    health, speed, defenseLevel, supportPassive, traits,
+                    health, speed, defenseLevel, supportPassives, traits,
                     staggerThresholds, resistances, positiveSanityEffects, negativeSanityEffects,
                     abilities, combatPassives
             );

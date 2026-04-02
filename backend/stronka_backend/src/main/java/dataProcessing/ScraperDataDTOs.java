@@ -35,7 +35,7 @@ public class ScraperDataDTOs
      * @param health Maksymalne życie ID
      * @param speed Przedział prędkości ID
      * @param defenseLevel Maksymalny defenseLevel jednostki
-     * @param supportPassive Umiejętność pasywna wspierająca jednostki
+     * @param supportPassives Umiejętność pasywna wspierająca jednostki
      * @param traits Wszystkie cechy jednostki
      * @param staggerThresholds Wszystkie stagger thresholdy jednostki
      * @param resistances Wszystkie stopnie odporności na obrażenia jednostki
@@ -57,7 +57,7 @@ public class ScraperDataDTOs
             int health,
             String speed,
             int defenseLevel,
-            UUID supportPassive,
+            List<UUID> supportPassives,
 
             List<String> traits,
             List<String> staggerThresholds,

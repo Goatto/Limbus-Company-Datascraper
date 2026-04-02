@@ -62,6 +62,7 @@ public class ScraperRunner implements CommandLineRunner
 
                 System.out.println("Scraping status effects: ");
                 Document selectedPage = scrapeData(statusEffects);
+
                 if(selectedPage != null)
                 {
                     statusEffectsScraper.scrapeStatusEffectData(selectedPage);

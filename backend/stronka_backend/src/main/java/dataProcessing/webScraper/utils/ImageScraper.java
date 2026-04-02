@@ -43,6 +43,7 @@ public class ImageScraper
      * @param imgElement Element, który zawiera obrazek, którego URL chcemy zebrać.
      * @return Nazwę pliku obrazka, który właśnie został zapisany na komputerze.
      */
+    // TODO Zmodyfikować tak by zamienić _ na spacje, jak i zamienić znaki na faktyczne ich wartości
     public static String scrapeImageURL(Element imgElement)
     {
         // Upewniamy się, że nie otrzymujemy nulla
@@ -60,7 +61,8 @@ public class ImageScraper
             imgURL = imgURL.substring(0, imgURL.lastIndexOf("/"));
         }
 
-        String fileName = imgURL.substring(imgURL.lastIndexOf('/') + 1);
+        String fileName = imgElement.attr("alt");
+        fileName = fileName.replaceAll("[<>:\"/\\\\|?*]", "");
         // TODO Odkomentować jeżeli pojawią się jakieś problemy
         // fileName = fileName.replaceAll("\\d+-", "");
         // Znaki po oraz samo ? uniemożliwiają pobieranie, więc się ich pozbywamy
@@ -97,7 +99,7 @@ public class ImageScraper
      * @param imgURL URL do pliku, który chcemy pobrać.
      * @param fileName Nazwa, pod którą chcemy zapisać pobrany plik.
      */
-    private static void downloadScrapedImageURL(String imgURL, String fileName)
+    private static void  downloadScrapedImageURL(String imgURL, String fileName)
     {
         try
         {
