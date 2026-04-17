@@ -1,6 +1,7 @@
 package dataProcessing;
 
-import dataProcessing.webScraper.enums.Tiers;
+import dataProcessing.webScraper.enums.Rarity;
+import dataProcessing.webScraper.enums.ThreatLevel;
 
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class ScraperDataDTOs
             String name,
             String sinnerName,
             String portraitFile,
-            Tiers.Rarity rarity,
+            Rarity rarity,
             String world,
             String worldFile,
             String season,
@@ -94,7 +95,7 @@ public class ScraperDataDTOs
         String sinnerName,
         String portraitFile,
         String corrodedPortraitFile,
-        Tiers.ThreatLevel threatLevel,
+        ThreatLevel threatLevel,
         String season,
         String releaseDate,
         String sinAffinity,

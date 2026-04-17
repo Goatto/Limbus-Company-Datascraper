@@ -1,9 +1,8 @@
 package dataProcessing.models;
 
-import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.join_tables.EGOAbility;
 import dataProcessing.models.join_tables.EGOPassive;
-import dataProcessing.webScraper.enums.Tiers;
+import dataProcessing.webScraper.enums.ThreatLevel;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,7 +35,7 @@ public class EGOEntity
     private String corrodedPortraitFile;
 
     @Column(name = "tier", nullable = false)
-    private Tiers.ThreatLevel threatLevel;
+    private ThreatLevel threatLevel;
 
     @Column(name = "season", nullable = false)
     private String season;

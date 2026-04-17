@@ -62,7 +62,7 @@ public class ImageScraper
         }
 
         String fileName = imgElement.attr("alt");
-        fileName = fileName.replaceAll("[<>:\"/\\\\|?*]", "");
+        fileName = fileName .replaceAll("[<>:\"/\\\\|?*]", "");
         // TODO Odkomentować jeżeli pojawią się jakieś problemy
         // fileName = fileName.replaceAll("\\d+-", "");
         // Znaki po oraz samo ? uniemożliwiają pobieranie, więc się ich pozbywamy

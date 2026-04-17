@@ -1,12 +1,23 @@
 package dataProcessing;
 
-import dataProcessing.webScraper.enums.Tiers;
+import dataProcessing.webScraper.enums.Rarity;
+import dataProcessing.webScraper.enums.ThreatLevel;
 
 import java.util.*;
 
 public class DTOBuilders
 {
-    public static abstract class BaseEquippableBuilder<T extends BaseEquippableBuilder<T>>
+
+    public interface HasCombatPassive<T>
+    {
+        T addCombatPassive(UUID uuid);
+    }
+
+    public interface HasSupportPassive<T>
+    {
+        T addSupportPassive(UUID uuid);
+    }
+    public static abstract class BaseEquippableBuilder<T extends BaseEquippableBuilder<T>> implements HasCombatPassive<T>
     {
         protected String name;
         protected String sinnerName;
@@ -17,7 +28,6 @@ public class DTOBuilders
         protected List<UUID> abilities = new ArrayList<>();
         protected List<UUID> combatPassives = new ArrayList<>();
         protected Map<String, Double> resistances = new HashMap<>();
-        // TODO Pomyśl o dodaniu tu combat passives
 
         protected abstract T self();
 
@@ -57,6 +67,7 @@ public class DTOBuilders
             return self();
         }
 
+        @Override
         public T addCombatPassive(UUID combatPassive)
         {
             this.combatPassives.add(combatPassive);
@@ -69,9 +80,9 @@ public class DTOBuilders
             return self();
         }
     }
-    public static class IDDataBuilder extends BaseEquippableBuilder<IDDataBuilder>
+    public static class IDDataBuilder extends BaseEquippableBuilder<IDDataBuilder> implements HasSupportPassive<IDDataBuilder>
     {
-        private Tiers.Rarity rarity;
+        private Rarity rarity;
         private String world;
         private String worldFile;
         private int health;
@@ -90,7 +101,7 @@ public class DTOBuilders
             return this;
         }
 
-        public IDDataBuilder setRarity(Tiers.Rarity rarity)
+        public IDDataBuilder setRarity(Rarity rarity)
         {
             this.rarity = rarity;
             return this;
@@ -127,6 +138,7 @@ public class DTOBuilders
             return this;
         }
 
+        @Override
         public IDDataBuilder addSupportPassive(UUID supportPassive)
         {
             this.supportPassives.add(supportPassive);
@@ -171,7 +183,7 @@ public class DTOBuilders
     public static class EGODataBuilder extends BaseEquippableBuilder<EGODataBuilder>
     {
         private String corrodedPortraitFile;
-        private Tiers.ThreatLevel threatLevel;
+        private ThreatLevel threatLevel;
         private String sinAffinity;
         private String abnormality;
         private int awakenSanityCost;
@@ -191,7 +203,7 @@ public class DTOBuilders
             return this;
         }
 
-        public EGODataBuilder setThreatLevel(Tiers.ThreatLevel threatLevel)
+        public EGODataBuilder setThreatLevel(ThreatLevel threatLevel)
         {
             this.threatLevel = threatLevel;
             return this;
@@ -326,13 +338,13 @@ public class DTOBuilders
             return this;
         }
 
-        public AbilityDataBuilder setCoinEffect(Map<String, List<String>> coinEffects)
+        public AbilityDataBuilder setCoinEffects(Map<String, List<String>> coinEffects)
         {
             this.coinEffects = coinEffects;
             return this;
         }
 
-        public AbilityDataBuilder setStatusEffect(Set<String> statusEffect)
+        public AbilityDataBuilder setStatusEffects(Set<String> statusEffect)
         {
             this.statusEffects = statusEffect;
             return this;

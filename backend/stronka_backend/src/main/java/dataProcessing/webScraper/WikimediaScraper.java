@@ -4,7 +4,9 @@ import dataProcessing.DTOBuilders;
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.services.AbilityService;
 import dataProcessing.services.PassiveService;
-import dataProcessing.webScraper.enums.Tiers;
+import dataProcessing.webScraper.enums.PassiveCategory;
+import dataProcessing.webScraper.enums.Rarity;
+import dataProcessing.webScraper.enums.ThreatLevel;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 
 import static dataProcessing.webScraper.utils.ImageScraper.scrapeImageURL;
 
+// TODO Dodać logger
+// TODO Rozbić klasę na pomniejsze
 @Component
 public class WikimediaScraper
 {
@@ -44,7 +48,7 @@ public class WikimediaScraper
         this.passiveService = passiveService;
     }
 
-    // FIXME Nie radzi sobię z LCB Sinner ID
+    // FIXME Do poprawnienia jeszcze kilka rzeczy w LCB Sinner
     public static DTOBuilders.IDDataBuilder scrapeGeneralIDData(Document htmlContent, DTOBuilders.IDDataBuilder builder)
     {
         String[] idResistances = {"Slash", "Pierce", "Blunt"};
@@ -114,24 +118,29 @@ public class WikimediaScraper
         }
         if(!sinnerFound)
         {
-            String url = htmlContent.location();
-            if(url.contains("/wiki/"))
-            {
-                url = url.substring(url.lastIndexOf("/wiki/") + 6);
-            }
+            scrapeBackupName(htmlContent, builder);
+        }
+    }
 
-            String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
-            String formattedName = decodedUrl.replace("_", " ");
-            System.out.println("BACKUP Title: " + formattedName);
-            builder.setName(formattedName);
-            for(String sinner : sinnerWhiteList)
+    private static void scrapeBackupName(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder)
+    {
+        String url = htmlContent.location();
+        if(url.contains("/wiki/"))
+        {
+            url = url.substring(url.lastIndexOf("/wiki/") + 6);
+        }
+
+        String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+        String formattedName = decodedUrl.replace("_", " ");
+        System.out.println("BACKUP Title: " + formattedName);
+        builder.setName(formattedName);
+        for(String sinner : sinnerWhiteList)
+        {
+            if(formattedName.contains(sinner))
             {
-                if(formattedName.contains(sinner))
-                {
-                    System.out.println("BACKUP Sinner: " + sinner);
-                    builder.setSinnerName(sinner);
-                    break;
-                }
+                System.out.println("BACKUP Sinner: " + sinner);
+                builder.setSinnerName(sinner);
+                break;
             }
         }
     }
@@ -174,11 +183,12 @@ public class WikimediaScraper
         if(rowType.equals("RarityWorld"))
         {
             String rarityIMG = extractAltFromSpecifiedIndex(specifiedRow, 1);
-            builder.setRarity(Tiers.Rarity.rarityParser(rarityIMG));
+            builder.setRarity(Rarity.rarityParser(rarityIMG));
             System.out.println("Rarity : " + rarityIMG);
 
             Element worldIMGURL = extractElementFromSpecifiedIndex(specifiedRow, 3).selectFirst("img");
             String worldIMG = extractAltFromSpecifiedIndex(specifiedRow, 3);
+            // TODO Niepotrzebna redundancja danych, pozbyć się nazwy, zostawić plik
             builder.setWorldFile(worldIMG);
             builder.setWorld(worldIMG.replace("Icon.png", ""));
             System.out.println("World : " + worldIMG);
@@ -196,7 +206,8 @@ public class WikimediaScraper
         }
     }
 
-    private static void scrapeBaseStats(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
+    private static void scrapeBaseStats(DTOBuilders.IDDataBuilder builder, Elements specifiedRow)
+    {
         int health = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 1));
         builder.setHealth(health);
         System.out.println("Health: " + health);
@@ -259,7 +270,6 @@ public class WikimediaScraper
             {
                 continue;
             }
-            // TODO tutaj chyba odbywało by się dodawanie
            builder.addAbility(processSingleAbility(element, new DTOBuilders.AbilityDataBuilder()));
         }
     }
@@ -267,35 +277,28 @@ public class WikimediaScraper
     // TODO Dodać dodawanie pasywek do DB
     public void scrapePassiveData(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder)
     {
-
+        Set<PassiveCategory> previousCategories = EnumSet.noneOf(PassiveCategory.class);
         // Ciekawy styl jest z tym b:contains...
         Elements prePassiveHeaders = htmlContent.select("b:contains(Passive), "
                 + "b:contains(Combat Passives), b:contains(Support Passive), b:contains(Passives)");
 
-        String passiveCategory = "";
+        PassiveCategory passiveCategory;
         for (Element prePassiveHeader : prePassiveHeaders)
         {
-            String previousPassiveCategory = passiveCategory;
             String headerText = prePassiveHeader.text().trim();
-            if (headerText.contains("Combat Passive") || headerText.equals("Passives") || headerText.equals("Passive"))
-            {
-                passiveCategory = "COMBAT_PASSIVE";
-            }
-            // else-if bo inaczej możemy dostać false-positive dla continue
-            else if (headerText.contains("Support Passive"))
-            {
-                passiveCategory = "SUPPORT_PASSIVE";
-            }
-            else
+            passiveCategory = PassiveCategory.passiveParser(headerText);
+            if(passiveCategory == PassiveCategory.UNKNOWN)
             {
                 continue;
             }
             // Z racji struktury strony, mamy kilka razy kontenery o tej samej zawartości, z racji,
-            // że nie chcę wypisywac ich wszystkich, robimy break, z jakiejś racji dochodzi do tego tylko dla E.G.O,
+            // że nie chcę wypisywac ich wszystkich, robimy continue, z jakiejś racji dochodzi do tego tylko dla E.G.O,
             // więc w poniższy warunek jest odpowiedni
-            if(previousPassiveCategory.equals(passiveCategory))
+
+            // Set zwraca false, jeżeli metoda add napotka już istniejący element
+            if(!previousCategories.add(passiveCategory))
             {
-                break;
+                continue;
             }
             System.out.println(passiveCategory);
             Element currentParent = prePassiveHeader.parent();
@@ -313,33 +316,25 @@ public class WikimediaScraper
 
             for(Element divPassiveContainer : divPassiveContainers)
             {
-                // TODO Dodać tu buildera pasywek
                 ScraperDataDTOs.Passive passive = ScraperNodeVisitors.extractPassive(divPassiveContainer);
                 UUID uuid = passiveService.saveNewPassive(passive);
                 switch(passiveCategory)
                 {
-                    // TODO To chyba mogę jakoś poprawić
-                    case "COMBAT_PASSIVE" ->
+                    case COMBAT_PASSIVE ->
                     {
-                        if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
+                        if(builder instanceof DTOBuilders.HasCombatPassive<?> combatBuilder)
                         {
-                            idBuilder.addCombatPassive(uuid);
-
-                        }
-                        else if(builder instanceof DTOBuilders.EGODataBuilder egoBuilder)
-                        {
-                            egoBuilder.addCombatPassive(uuid);
+                            combatBuilder.addCombatPassive(uuid);
                         }
                     }
-                    case "SUPPORT_PASSIVE" ->
+                    case SUPPORT_PASSIVE ->
                     {
-                        if(builder instanceof DTOBuilders.IDDataBuilder idBuilder)
+                        if(builder instanceof DTOBuilders.HasSupportPassive<?> supportBuilder)
                         {
-                            idBuilder.addSupportPassive(uuid);
+                            supportBuilder.addSupportPassive(uuid);
                         }
                     }
                 }
-
             }
         }
     }
@@ -566,44 +561,28 @@ public class WikimediaScraper
             }
             if(specifiedRow.selectFirst("td:contains(Risk Level)") != null)
             {
-                if(hasNoCorrosion)
-                {
-                    String riskLevel = extractAltFromSpecifiedIndex(specifiedRow, 3);
-                    builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
-                    System.out.println("Risk Level: " + riskLevel);
-
-                    String season = "Season 0";
-                    builder.setSeason(season);
-                    System.out.println("Season: " + season);
-
-                    String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1);
-                    builder.setSinAffinity(affinity);
-                    System.out.println("Affinity: " + affinity);
-
-                    String release = "Day 1";
-                    builder.setReleaseDate(release);
-                    System.out.println("Release: " + release);
-
-                    break;
-                }
                 String riskLevel = extractAltFromSpecifiedIndex(specifiedRow, 1);
-                builder.setThreatLevel(Tiers.ThreatLevel.threatLevelParser(riskLevel));
+                builder.setThreatLevel(ThreatLevel.threatLevelParser(riskLevel));
                 System.out.println("Risk Level: " + riskLevel);
 
-                String season = extractTextFromSpecifiedIndex(specifiedRow,3);
+                String season = hasNoCorrosion ? "Season 0" : extractTextFromSpecifiedIndex(specifiedRow,3);
                 builder.setSeason(season);
                 System.out.println("Season: " + season);
             }
-            else if(specifiedRow.selectFirst("td:contains(Affinity)") != null)
-            {
-                String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1);
+            else if(specifiedRow.selectFirst("td:contains(Affinity)") != null) {
 
+                String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1);
                 builder.setSinAffinity(affinity);
                 System.out.println("Affinity: " + affinity);
 
-                String releaseDate = extractTextFromSpecifiedIndex(specifiedRow,3);
-                builder.setReleaseDate(releaseDate);
-                System.out.println("Release: " + releaseDate);
+                String release = hasNoCorrosion ? "Day 1" : extractTextFromSpecifiedIndex(specifiedRow, 3);
+                builder.setReleaseDate(release);
+                System.out.println("Release: " + release);
+
+                if(hasNoCorrosion)
+                {
+                    break;
+                }
             }
             else if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
             {
@@ -687,7 +666,7 @@ public class WikimediaScraper
     }
 
     // FIXME Nie ma base effects dla wielu EGO
-    //  Spowodowane tym że mają w tekście znak +
+    //  Spowodowane tym że mają w tekście znak + albo - ?
     private static void scrapeEffects(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
     {
         ScraperNodeVisitors.AbilityResult result = ScraperNodeVisitors.extractAbility(rightAbilityPanel);
@@ -703,8 +682,8 @@ public class WikimediaScraper
             result.baseEffects().forEach(effect -> System.out.println("- " + effect));
         }
 
-        abilityBuilder.setCoinEffect(result.coinEffects());
-        abilityBuilder.setStatusEffect(result.statusEffects());
+        abilityBuilder.setCoinEffects(result.coinEffects());
+        abilityBuilder.setStatusEffects(result.statusEffects());
         result.coinEffects().forEach((coinNum, effects) ->
         {
             System.out.println("Coin " + coinNum + " effects: ");
@@ -780,7 +759,6 @@ public class WikimediaScraper
         System.out.println("Coin power: " + coinPowerElement.text());
     }
 
-    // FIXME Nie może zebrać ikonki dla Counter który jest gluttony
     private static void scrapeSkillIcon(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
     {
         Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");

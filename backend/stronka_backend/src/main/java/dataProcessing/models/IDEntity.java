@@ -1,9 +1,8 @@
 package dataProcessing.models;
 
-import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.join_tables.IDAbility;
 import dataProcessing.models.join_tables.IDPassive;
-import dataProcessing.webScraper.enums.Tiers;
+import dataProcessing.webScraper.enums.Rarity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,7 +13,6 @@ import org.hibernate.type.SqlTypes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -34,7 +32,7 @@ public class IDEntity
     private String portraitFile;
 
     @Column(name = "tier", nullable = false)
-    private Tiers.Rarity rarity;
+    private Rarity rarity;
 
     @Column(name = "world", nullable = false)
     private String world;
