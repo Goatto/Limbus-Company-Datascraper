@@ -16,7 +16,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+// TODO, dodać sprawdzanie czy dane są już w DB
 @Service
 public class SinnerService
 {

@@ -7,6 +7,10 @@ import dataProcessing.services.PassiveService;
 import dataProcessing.webScraper.enums.PassiveCategory;
 import dataProcessing.webScraper.enums.Rarity;
 import dataProcessing.webScraper.enums.ThreatLevel;
+import dataProcessing.webScraper.exceptions.MissingImageException;
+import dataProcessing.webScraper.exceptions.MissingSectionException;
+import dataProcessing.webScraper.exceptions.MissingTextException;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
@@ -23,6 +27,7 @@ import static dataProcessing.webScraper.utils.ImageScraper.scrapeImageURL;
 
 // TODO Dodać logger
 // TODO Rozbić klasę na pomniejsze
+@Slf4j
 @Component
 public class WikimediaScraper
 {
@@ -38,6 +43,10 @@ public class WikimediaScraper
             "Meursault", "Hong Lu", "Heathcliff", "Ishmael", "Rodion", "Sinclair", "Outis", "Gregor");
 
     static String[] egoResistances = {"Wrath", "Lust", "Sloth", "Gluttony", "Gloom", "Pride", "Envy"};
+
+    static String whitelistSelector = sinnerWhiteList.stream()
+            .map(sinner -> "img[alt*=\"" + sinner + "\"]")
+            .collect(Collectors.joining(", "));
 
     private final AbilityService abilityService;
     private final PassiveService passiveService;
@@ -72,8 +81,8 @@ public class WikimediaScraper
         }
         String portraitName = Optional.ofNullable(smallSelector)
                         .map(element -> element.attr("alt"))
-                        .orElse("NO PORTRAIT");
-        System.out.println("Portrait: " + portraitName);
+                        .orElseThrow(() -> new MissingImageException("portraitName"));
+        log.info("Portrait: {}", portraitName);
         builder.setPortraitFile(portraitName);
         scrapeImageURL(smallSelector);
         Elements largeSelector = htmlContent.select("#General_Info-0 table tr");
@@ -101,18 +110,22 @@ public class WikimediaScraper
 
     private static void scrapeName(Document htmlContent, DTOBuilders.BaseEquippableBuilder<?> builder) {
         Element titleSelector = htmlContent.selectFirst(".mw-page-title-main");
-        String unitTitle = (titleSelector != null) ? titleSelector.text() : "No title";
+        if(titleSelector == null)
+        {
+            throw new MissingTextException("titleSelector");
+        }
+        String unitTitle = titleSelector.text();
 
         boolean sinnerFound = false;
         for(String sinner : sinnerWhiteList)
         {
             if(unitTitle.contains(sinner))
             {
-                System.out.println("Sinner: " + sinner);
+                log.info("Sinner: {}", sinner);
                 builder.setSinnerName(sinner);
                 sinnerFound = true;
                 builder.setName(unitTitle);
-                System.out.println(unitTitle);
+                log.info(unitTitle);
                 break;
             }
         }
@@ -132,13 +145,13 @@ public class WikimediaScraper
 
         String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
         String formattedName = decodedUrl.replace("_", " ");
-        System.out.println("BACKUP Title: " + formattedName);
+        log.info("BACKUP Title: {}", formattedName);
         builder.setName(formattedName);
         for(String sinner : sinnerWhiteList)
         {
             if(formattedName.contains(sinner))
             {
-                System.out.println("BACKUP Sinner: " + sinner);
+                log.info("BACKUP Sinner: {}", sinner);
                 builder.setSinnerName(sinner);
                 break;
             }
@@ -147,31 +160,31 @@ public class WikimediaScraper
 
     private static void scrapeStaggerThresholds(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
         Element specificatorHelper;
-        specificatorHelper = extractElementFromSpecifiedIndex(specifiedRow, 0);
+        specificatorHelper = extractElementFromSpecifiedIndex(specifiedRow, 0, "staggerThreshold");
         Elements staggerThresholds = specificatorHelper.getElementsByTag("font");
-        System.out.println("Stagger Threshholds: ");
+        log.info("Stagger Threshholds: ");
         for(Element staggerThreshold : staggerThresholds)
         {
             builder.addStaggerThreshold(staggerThreshold.text());
-            System.out.println(staggerThreshold.text());
+            log.info(staggerThreshold.text());
         }
     }
 
     private static void scrapeTraits(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
         Element specificatorHelper;
-        specificatorHelper = extractElementFromSpecifiedIndex(specifiedRow, 1);
+        specificatorHelper = extractElementFromSpecifiedIndex(specifiedRow, 1, "unitTrait");
         Elements unitTraits = specificatorHelper.getElementsByTag("b");
-        System.out.println("Traits: ");
+        log.info("Traits: ");
         for(Element unitTrait : unitTraits)
         {
             builder.addTrait(unitTrait.text());
-            System.out.println(unitTrait.text());
+            log.info(unitTrait.text());
         }
     }
 
     private static void scrapeTypeData(DTOBuilders.IDDataBuilder builder, Elements specifiedRow) {
         String rowType = "ERROR!";
-        String rowText = extractTextFromSpecifiedIndex(specifiedRow, 0);
+        String rowText = extractTextFromSpecifiedIndex(specifiedRow, 0, "rowText");
         if(rowText.contains("Rarity"))
         {
             rowType = "RarityWorld";
@@ -182,43 +195,43 @@ public class WikimediaScraper
         }
         if(rowType.equals("RarityWorld"))
         {
-            String rarityIMG = extractAltFromSpecifiedIndex(specifiedRow, 1);
+            String rarityIMG = extractAltFromSpecifiedIndex(specifiedRow, 1, "rarityIMG");
             builder.setRarity(Rarity.rarityParser(rarityIMG));
-            System.out.println("Rarity : " + rarityIMG);
+            log.info("Rarity : {}", rarityIMG);
 
-            Element worldIMGURL = extractElementFromSpecifiedIndex(specifiedRow, 3).selectFirst("img");
-            String worldIMG = extractAltFromSpecifiedIndex(specifiedRow, 3);
+            Element worldIMGURL = extractElementFromSpecifiedIndex(specifiedRow, 3, "worldIMGURL").selectFirst("img");
+            String worldIMG = extractAltFromSpecifiedIndex(specifiedRow, 3, "worldIMG");
             // TODO Niepotrzebna redundancja danych, pozbyć się nazwy, zostawić plik
             builder.setWorldFile(worldIMG);
             builder.setWorld(worldIMG.replace("Icon.png", ""));
-            System.out.println("World : " + worldIMG);
+            log.info("World : {}", worldIMG);
             scrapeImageURL(worldIMGURL);
         }
         else if(rowType.equals("SeasonRelease"))
         {
-            String season = extractTextFromSpecifiedIndex(specifiedRow, 1);
+            String season = extractTextFromSpecifiedIndex(specifiedRow, 1, "season");
             builder.setSeason(season);
-            System.out.println("Season : " + season);
+            log.info("Season : {}", season);
 
-            String release = extractTextFromSpecifiedIndex(specifiedRow, 3);
+            String release = extractTextFromSpecifiedIndex(specifiedRow, 3, "release");
             builder.setReleaseDate(release);
-            System.out.println("Release : " + release);
+            log.info("Release : {}", release);
         }
     }
 
     private static void scrapeBaseStats(DTOBuilders.IDDataBuilder builder, Elements specifiedRow)
     {
-        int health = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 1));
+        int health = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 1, "health"));
         builder.setHealth(health);
-        System.out.println("Health: " + health);
+        log.info("Health: {}", health);
 
-        String speed = extractTextFromSpecifiedIndex(specifiedRow, 3);
+        String speed = extractTextFromSpecifiedIndex(specifiedRow, 3, "speed");
         builder.setSpeed(speed);
-        System.out.println("Speed: " + speed);
+        log.info("Speed: {}", speed);
 
-        int defenseLevel = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 5));
+        int defenseLevel = Integer.parseInt(extractTextFromSpecifiedIndex(specifiedRow, 5, "defenseLevel"));
         builder.setDefenseLevel(defenseLevel);
-        System.out.println("Defense level: " + defenseLevel);
+        log.info("Defense level: {}", defenseLevel);
     }
 
     // TODO Stworzyć osobnę DTO dla sanity
@@ -231,21 +244,21 @@ public class WikimediaScraper
             Elements sanityEffects = sanitySection.select("ul li");
             if (headerText.contains("increasing Sanity"))
             {
-                System.out.println("Sanity+:");
+                log.info("Sanity+:");
                 for(Element sanityEffect : sanityEffects)
                 {
                     builder.addPositiveSanityEffect(sanityEffect.text().trim());
-                    System.out.println(sanityEffect.text());
+                    log.info(sanityEffect.text());
 
                 }
             }
             else if (headerText.contains("decreasing Sanity"))
             {
-                System.out.println("Sanity-:");
+                log.info("Sanity-:");
                 for(Element sanityEffect : sanityEffects)
                 {
                     builder.addNegativeSanityEffect(sanityEffect.text().trim());
-                    System.out.println(sanityEffect.text());
+                    log.info(sanityEffect.text());
 
                 }
             }
@@ -300,7 +313,7 @@ public class WikimediaScraper
             {
                 continue;
             }
-            System.out.println(passiveCategory);
+            log.info(String.valueOf(passiveCategory));
             Element currentParent = prePassiveHeader.parent();
             // Pozwala nam an operowanie na stronach E.G.O jak i ID
             Element passiveContainer = Optional.ofNullable(currentParent)
@@ -311,7 +324,7 @@ public class WikimediaScraper
                             .map(Element::parent)
                             .map(Element::nextElementSibling)
                             // W innym wypadku dajemy pustego diva, żeby program się nie wyrzucił,
-                            .orElse(new Element("div")));
+                            .orElseThrow(() -> new MissingSectionException("passiveContainer")));
             Elements divPassiveContainers = passiveContainer.select("div[style*=padding:10px]");
 
             for(Element divPassiveContainer : divPassiveContainers)
@@ -345,7 +358,7 @@ public class WikimediaScraper
         scrapeName(htmlContent, builder);
         Element genericInformation = Optional.of(htmlContent)
                 .map(content -> content.selectFirst(".mw-body-content"))
-                .orElse(new Element("div"));
+                .orElseThrow(() -> new MissingSectionException("genericInformation"));
 
         boolean hasNoCorrosion = false;
         Element genericInformationCost;
@@ -374,7 +387,7 @@ public class WikimediaScraper
 
         Elements genericRows = Optional.ofNullable(genericInformationCost)
                 .map(element -> element.getElementsByTag("tr"))
-                .orElse(new Elements());
+                .orElseThrow(() -> new MissingSectionException("genericRows"));
 
         boolean isOverclocked = false;
         for(Element row : genericRows)
@@ -392,8 +405,8 @@ public class WikimediaScraper
                 continue;
             }
 
-            Element headerRow = extractElementFromSpecifiedIndex(specifiedRow, 0);
-            Element dataRow = extractElementFromSpecifiedIndex(specifiedRow, 1);
+            Element headerRow = extractElementFromSpecifiedIndex(specifiedRow, 0, "headerRow");
+            Element dataRow = extractElementFromSpecifiedIndex(specifiedRow, 1, "dataRow");
 
             if(dataRow.text().isEmpty())
             {
@@ -412,7 +425,7 @@ public class WikimediaScraper
         Element genericInformationResistances = Optional.ofNullable(
                 genericInformation.selectFirst("b:contains(Resistances)"))
                 .map(container -> container.closest("tbody"))
-                .orElse(new Element("div"));
+                .orElseThrow(() -> new MissingSectionException("genericInformationResistances"));
         Element row = genericInformationResistances.child(1);
 
         parseResistances(row.text(), egoResistances, builder);
@@ -435,14 +448,14 @@ public class WikimediaScraper
             awakeningInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:right]"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingSectionException("awakeningInformation"));
             builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder, true));
 
             abilityBuilder.setSkillSlot("Skill_2");
             Element corrosionInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:right]"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingSectionException("corrosionInformation"));
             builder.addAbility(processSingleAbility(corrosionInformation, abilityBuilder, true));
         }
         else
@@ -450,7 +463,7 @@ public class WikimediaScraper
             awakeningInformation = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:right]"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingSectionException("awakeningInformation"));
             builder.addAbility(processSingleAbility(awakeningInformation, abilityBuilder, true));
         }
     }
@@ -464,12 +477,12 @@ public class WikimediaScraper
             awakeningPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-awakening div.ABMobile[style*=float:left] img[alt$=.png]"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingImageException("awakeningPortrait"));
 
             Element corrosionPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             "#mw-customcollapsible-corrosion div.ABMobile[style*=float:left] img[alt$=.png]"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingImageException("corrosionPortrait"));
 
             builder.setCorrededPortraitFile(corrosionPortrait.attr("alt"));
             scrapeImageURL(corrosionPortrait);
@@ -479,7 +492,7 @@ public class WikimediaScraper
             awakeningPortrait = Optional.of(htmlContent)
                     .map(content -> content.selectFirst(
                             ".mw-content-ltr div.ABMobile[style*=float:left] img[alt$=.png]"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingImageException("awakeningPortrait"));
         }
         builder.setPortraitFile(awakeningPortrait.attr("alt"));
     }
@@ -489,12 +502,12 @@ public class WikimediaScraper
         int sanityValue = Integer.parseInt(dataRow.text());
         if(isOverclocked)
         {
-            System.out.println("Corrosion sanity cost: " + sanityValue);
+            log.info("Corrosion sanity cost: {}", sanityValue);
             builder.setCorrosionSanityCost(sanityValue);
         }
         else
         {
-            System.out.println("Awakening sanity cost: " + sanityValue);
+            log.info("Awakening sanity cost: {}", sanityValue);
             builder.setAwakenSanityCost(sanityValue);
         }
     }
@@ -533,12 +546,12 @@ public class WikimediaScraper
         }
         if(isOverclocked)
         {
-            System.out.println("Corrosion E.G.O Resources: " + resourcesEGO.toString().trim());
+            log.info("Corrosion E.G.O Resources: {}", resourcesEGO.toString().trim());
             builder.setCorrosionSinCost(useCost);
         }
         else
         {
-            System.out.println("Awakening E.G.O Resources: " + resourcesEGO.toString().trim());
+            log.info("Awakening E.G.O Resources: {}", resourcesEGO.toString().trim());
             builder.setAwakenSinCost(useCost);
         }
     }
@@ -546,10 +559,10 @@ public class WikimediaScraper
     private static void scrapeEgoGenericInformation(DTOBuilders.EGODataBuilder builder, Element genericInformation, boolean hasNoCorrosion)
     {
         Elements genericRows;
-        Element genericInformationInfo = Optional.ofNullable(
-                genericInformation.selectFirst("b:contains(Info)"))
+        Element genericInformationInfo = Optional.ofNullable(genericInformation)
+                    .map(info -> info.selectFirst("b:contains(Info)"))
                     .map(container -> container.closest("tbody"))
-                    .orElse(new Element("div"));
+                    .orElseThrow(() -> new MissingSectionException("genericInformationInfo"));
         genericRows = genericInformationInfo.getElementsByTag("tr");
 
         for(Element row : genericRows)
@@ -561,23 +574,23 @@ public class WikimediaScraper
             }
             if(specifiedRow.selectFirst("td:contains(Risk Level)") != null)
             {
-                String riskLevel = extractAltFromSpecifiedIndex(specifiedRow, 1);
+                String riskLevel = extractAltFromSpecifiedIndex(specifiedRow, 1, "riskLevel");
                 builder.setThreatLevel(ThreatLevel.threatLevelParser(riskLevel));
-                System.out.println("Risk Level: " + riskLevel);
+                log.info("Risk Level: {}", riskLevel);
 
-                String season = hasNoCorrosion ? "Season 0" : extractTextFromSpecifiedIndex(specifiedRow,3);
+                String season = hasNoCorrosion ? "Season 0" : extractTextFromSpecifiedIndex(specifiedRow,3, "season");
                 builder.setSeason(season);
-                System.out.println("Season: " + season);
+                log.info("Season: {}", season);
             }
             else if(specifiedRow.selectFirst("td:contains(Affinity)") != null) {
 
-                String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1);
+                String affinity = extractAltFromSpecifiedIndex(specifiedRow, 1, "affinity");
                 builder.setSinAffinity(affinity);
-                System.out.println("Affinity: " + affinity);
+                log.info("Affinity: {}", affinity);
 
-                String release = hasNoCorrosion ? "Day 1" : extractTextFromSpecifiedIndex(specifiedRow, 3);
+                String release = hasNoCorrosion ? "Day 1" : extractTextFromSpecifiedIndex(specifiedRow, 3, "release");
                 builder.setReleaseDate(release);
-                System.out.println("Release: " + release);
+                log.info("Release: {}", release);
 
                 if(hasNoCorrosion)
                 {
@@ -586,9 +599,9 @@ public class WikimediaScraper
             }
             else if(specifiedRow.selectFirst("td:contains(Abnormality)") != null)
             {
-                String abnormality = extractTextFromSpecifiedIndex(specifiedRow, 1);
+                String abnormality = extractTextFromSpecifiedIndex(specifiedRow, 1, "abnormality");
                 builder.setAbnormality(abnormality);
-                System.out.println("Abnormality: " + abnormality);
+                log.info("Abnormality: {}", abnormality);
             }
         }
     }
@@ -615,7 +628,6 @@ public class WikimediaScraper
                 }
             }
         }
-        System.out.println();
     }
 
     // TODO Rozbić na mniejsze metody, pamiętaj o SINGLE RESPONSIBILITY PRINCIPLE
@@ -633,26 +645,23 @@ public class WikimediaScraper
         {
             abilityBuilder.setSkillSlot(skillSlot);
         }
-        System.out.println("\nPROCESSING: " + skillSlot);
+        log.info("\nPROCESSING: {}", skillSlot);
 
         // Zwraca pusty pojemnik, jeżeli nie istnieje
         Elements columns = Optional.ofNullable(abilityContainer.select("table tr").first())
                 .map(row -> row.select("td"))
-                .orElseGet(() -> {
-                    System.out.println("No td for table tr");
-                    return new Elements();
-                });
+                .orElseThrow(() -> new MissingSectionException("columns"));
 
         // Z racji, że wiemy, że zawsze będziemy mieć daną kolejność kolumn,
         // możemy działać po kolejności pojawienia się
-        Element leftAbilityPanel = extractElementFromSpecifiedIndex(columns, 0);
+        Element leftAbilityPanel = extractElementFromSpecifiedIndex(columns, 0, "leftAbilityPanel");
 
         scrapeSinAffinity(abilityBuilder, leftAbilityPanel);
         scrapeSkillIcon(abilityBuilder, leftAbilityPanel);
         scrapePower(abilityBuilder, leftAbilityPanel);
         scrapeDamageType(abilityBuilder, leftAbilityPanel);
 
-        Element rightAbilityPanel = extractElementFromSpecifiedIndex(columns, 1);
+        Element rightAbilityPanel = extractElementFromSpecifiedIndex(columns, 1, "rightAbilityPanel");
 
         scrapeCoinCount(abilityBuilder, rightAbilityPanel);
         scrapeAbilityName(abilityBuilder, rightAbilityPanel);
@@ -672,22 +681,22 @@ public class WikimediaScraper
         ScraperNodeVisitors.AbilityResult result = ScraperNodeVisitors.extractAbility(rightAbilityPanel);
 
         abilityBuilder.setBaseEffects(result.baseEffects());
-        System.out.println("Base effects:");
+        log.info("Base effects:");
         if (result.baseEffects().isEmpty())
         {
-            System.out.println("- No Base Effects");
+            log.info("- No Base Effects");
         }
         else
         {
-            result.baseEffects().forEach(effect -> System.out.println("- " + effect));
+            result.baseEffects().forEach(effect -> log.info("- {}", effect));
         }
 
         abilityBuilder.setCoinEffects(result.coinEffects());
         abilityBuilder.setStatusEffects(result.statusEffects());
         result.coinEffects().forEach((coinNum, effects) ->
         {
-            System.out.println("Coin " + coinNum + " effects: ");
-            effects.forEach(effect -> System.out.println("- " + effect));
+            log.info("Coin {} effects: ", coinNum);
+            effects.forEach(effect -> log.info("- {}", effect));
         });
     }
 
@@ -698,26 +707,33 @@ public class WikimediaScraper
                         .filter(t -> t.matches(".*[+-]\\d+.*"))
                         .findFirst()
                         .map(t -> t.replaceAll(".*([+-]\\d+).*", "$1"))
-                        .orElse("0");
+                        .orElseThrow(() -> new MissingTextException("offenseLevel"));
         abilityBuilder.setOffenseLevel(offenseLevel);
-        System.out.println("Offense level: " + offenseLevel);
+        log.info("Offense level: {}", offenseLevel);
     }
 
     private static void scrapeAttackWeight(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
     {
         Element attackWeightElement = rightAbilityPanel.selectFirst("font");
-        String attackWeight = attackWeightElement != null ?
-                attackWeightElement.text().replace("Atk Weight ", "") : "NO ATTACK WEIGHT";
+        if(attackWeightElement == null)
+        {
+            throw new MissingTextException("attackWeightElement");
+        }
+        String attackWeight = attackWeightElement.text().replace("Atk Weight ", "").trim();
         abilityBuilder.setAttackWeight(attackWeight);
-        System.out.println("Attack weight: "  + attackWeight);
+        log.info("Attack weight: {}", attackWeight);
     }
 
     private static void scrapeAbilityName(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
     {
         Element abilityNameElement = rightAbilityPanel.selectFirst("div span");
-        String abilityName = abilityNameElement != null ? abilityNameElement.text() : "NO ABILITY NAME";
+        if(abilityNameElement == null)
+        {
+            throw new MissingTextException("abilityNameElement");
+        }
+        String abilityName = abilityNameElement.text();
         abilityBuilder.setAbilityName(abilityName);
-        System.out.println("Ability name: " + abilityName);
+        log.info("Ability name: {}", abilityName);
     }
 
     private static void scrapeCoinCount(DTOBuilders.AbilityDataBuilder abilityBuilder, Element rightAbilityPanel)
@@ -735,28 +751,32 @@ public class WikimediaScraper
             }
         }
         abilityBuilder.setCoinCount(coinCount);
-        System.out.println("Coin count: " + coinCount);
+        log.info("Coin count: {}", coinCount);
     }
 
     private static void scrapeDamageType(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
     {
         // w Jsoup '>' oznacza bezpośrednie dziecko
         Element damageTypeElement = leftAbilityPanel.selectFirst("> img");
-        String damageType = damageTypeElement != null ? damageTypeElement.attr("alt") : "NO DAMAGE TYPE ICON FOUND";
+        if(damageTypeElement == null)
+        {
+            throw new MissingImageException("damageTypeElement");
+        }
+        String damageType = damageTypeElement.attr("alt");
         abilityBuilder.setDamageType(damageType);
-        System.out.println("Damage type: " + damageType.replace(".png", ""));
+        log.info("Damage type: {}", damageType.replace(".png", ""));
     }
 
     private static void scrapePower(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
     {
         Elements abilityPowers = leftAbilityPanel.select("b");
-        Element basePowerElement = extractElementFromSpecifiedIndex(abilityPowers, 0);
+        Element basePowerElement = extractElementFromSpecifiedIndex(abilityPowers, 0, "basePowerElement");
         abilityBuilder.setBasePower(Integer.parseInt(basePowerElement.text()));
-        System.out.println("Base power: " + basePowerElement.text());
+        log.info("Base power: {}", basePowerElement.text());
 
-        Element coinPowerElement = extractElementFromSpecifiedIndex(abilityPowers, 1);
+        Element coinPowerElement = extractElementFromSpecifiedIndex(abilityPowers, 1, "coinPowerElement");
         abilityBuilder.setCoinPower(coinPowerElement.text());
-        System.out.println("Coin power: " + coinPowerElement.text());
+        log.info("Coin power: {}", coinPowerElement.text());
     }
 
     private static void scrapeSkillIcon(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
@@ -764,59 +784,74 @@ public class WikimediaScraper
         Element skillIcon = leftAbilityPanel.selectFirst("img[alt$=Icon.png], img[alt$=Skill.png]");
         if(skillIcon == null)
         {
-            String whitelistSelector = sinnerWhiteList.stream()
-                    .map(sinner -> "img[alt*=\"" + sinner + "\"]")
-                    .collect(Collectors.joining(", "));
             skillIcon = leftAbilityPanel.selectFirst(whitelistSelector);
         }
+        if(skillIcon == null)
+        {
+            throw new MissingImageException("skillIcon");
+        }
         scrapeImageURL(skillIcon);
-        String skillIconFile = skillIcon != null ? skillIcon.attr("alt") : "NO SKILL ICON FOUND";
+        String skillIconFile = skillIcon.attr("alt");
         skillIconFile = skillIconFile.replaceAll("[<>:\"/\\\\|?*]", "");
         abilityBuilder.setSkillIconFile(skillIconFile);
-        System.out.println(skillIconFile.replace(".png", ""));
+        log.info(skillIconFile.replace(".png", ""));
     }
 
     private static void scrapeSinAffinity(DTOBuilders.AbilityDataBuilder abilityBuilder, Element leftAbilityPanel)
     {
         // W razie, że nic nie dostaniemy, lepsze coś niż null
-        abilityBuilder.setSinAffinity("NO SIN AFFINITY FOUND");
+        boolean affinityFound = false;
         for (Element image : leftAbilityPanel.select("img"))
         {
             String altText = image.attr("alt");
             if (iconWhiteList.contains(altText))
             {
                 abilityBuilder.setSinAffinity(altText);
-                System.out.println("Sin affinity: " + altText.replace(".png", ""));
+                log.info("Sin affinity: {}", altText.replace(".png", ""));
+                affinityFound = true;
+                break;
             }
+        }
+        if(!affinityFound)
+        {
+            throw new MissingTextException("sinAffinity");
         }
     }
 
-    private static Element extractElementFromSpecifiedIndex(Elements columns, int columnIndex)
+    private static Element extractElementFromSpecifiedIndex(Elements columns, int columnIndex, String fieldName)
     {
         if(columnIndex >= columns.size())
         {
-            return new Element("div");
+            throw new MissingSectionException(fieldName);
         }
         return columns.get(columnIndex);
     }
 
-    private static String extractAltFromSpecifiedIndex(Elements columns, int columnIndex)
+    private static String extractAltFromSpecifiedIndex(Elements columns, int columnIndex, String fieldName)
     {
         if(columnIndex >= columns.size())
         {
-            return "NO IMAGE!";
+            throw new MissingImageException(fieldName);
         }
         Element img = columns.get(columnIndex).selectFirst("img");
-        return img != null ? img.attr("alt") : "NO IMAGE!";
+        if(img == null)
+        {
+            throw new MissingImageException(fieldName);
+        }
+        return img.attr("alt");
     }
 
-    private static String extractTextFromSpecifiedIndex(Elements columns, int columnIndex)
+    private static String extractTextFromSpecifiedIndex(Elements columns, int columnIndex, String fieldName)
     {
         if(columnIndex >= columns.size())
         {
-            return "NO TEXT!";
+            throw new MissingSectionException(fieldName);
         }
         String text = columns.get(columnIndex).text().trim();
-        return !text.isEmpty() ? text : "NO TEXT!";
+        if(text.isEmpty())
+        {
+            throw new MissingTextException(fieldName);
+        }
+        return text;
     }
 }

@@ -17,7 +17,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
-
+// TODO, dodać sprawdzanie czy dane są już w DB
 @Service
 public class IDService
 {

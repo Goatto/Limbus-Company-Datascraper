@@ -1,6 +1,7 @@
 package dataProcessing.webScraper;
 
 import dataProcessing.services.SinnerService;
+import dataProcessing.webScraper.exceptions.ScraperException;
 import org.jsoup.nodes.Document;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -31,7 +32,7 @@ public class ScraperRunner implements CommandLineRunner
     /*
         Metoda run jest wykonywana w momencie inicjalizacji kontekstu springa
      */
-    public void run(String... args) throws Exception
+    public void run(String... args)
     {
         {
             try
@@ -87,10 +88,16 @@ public class ScraperRunner implements CommandLineRunner
                 List<String> urlLists = linkScraper(urls);
                 for(String urlDocument : urlLists)
                 {
-                    selectedPage = scrapeData(urlDocument);
-                    if(selectedPage != null)
+                    try {
+                        selectedPage = scrapeData(urlDocument);
+                        if (selectedPage != null) {
+                            dataOperator.parseData(selectedPage);
+                        }
+                    }
+                    catch(ScraperException e)
                     {
-                        dataOperator.parseData(selectedPage);
+                        System.out.println("Caught error at: " + e);
+                        continue;
                     }
                     // Jak za szybko będziemy przechodzić, to otrzymamy status: '429 Too Many Requests'
                     try

@@ -4,7 +4,7 @@ import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.StatusEffectEntity;
 import dataProcessing.repositories.StatusEffectRepository;
 import org.springframework.stereotype.Service;
-
+// TODO, dodać sprawdzanie czy dane są już w DB
 @Service
 public class StatusEffectService
 {
