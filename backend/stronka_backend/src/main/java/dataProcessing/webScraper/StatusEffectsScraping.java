@@ -3,6 +3,7 @@ package dataProcessing.webScraper;
 import dataProcessing.ScraperDataDTOs;
 import dataProcessing.services.StatusEffectService;
 import dataProcessing.webScraper.utils.ImageScraper;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 
+@Slf4j
 @Component
 public class StatusEffectsScraping
 {
@@ -134,14 +136,14 @@ public class StatusEffectsScraping
                         .filter(line -> !line.isEmpty())
                         .toList();
 
-                System.out.println("Name: " + finalName);
-                System.out.println("Icon: " + finalIcon);
-                System.out.println("Description: ");
+                log.info("Name: {}", finalName);
+                log.info("Icon: {}", finalIcon);
+                log.info("Description: ");
                 for (String line : finalDescriptionLines)
                 {
-                    System.out.println(line);
+                    log.info(line);
                 }
-                System.out.println("Related effects: ");
+                log.info("Related effects: ");
 
                 this.resultStatusEffect = new ScraperDataDTOs.StatusEffect(
                         finalName,

@@ -1,5 +1,7 @@
 package dataProcessing.webScraper.utils;
 
+import dataProcessing.webScraper.exceptions.MissingImageException;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Element;
 
 import java.io.File;
@@ -17,6 +19,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 public class ImageScraper
 {
     static Map<String, String> httpHeaders = Map.of(
@@ -49,8 +52,7 @@ public class ImageScraper
         // Upewniamy się, że nie otrzymujemy nulla
         if(imgElement == null)
         {
-            System.out.println("VALUE PASSED IN scrapeImageURL IS NULL!!!!");
-            return null;
+            throw new MissingImageException("scrapeImageURL");
         }
 
         String imgURL = imgElement.attr("abs:src");
@@ -88,7 +90,7 @@ public class ImageScraper
         // add zwraca true, tylko jeśli doszło do dodania nowego elementu
         if(!imgURL.isEmpty() && checkedFiles.add(imgURL))
         {
-            System.out.println("Registered new image: " + imgURL);
+            log.info("Registered new image: " + imgURL);
             downloadScrapedImageURL(imgURL, fileName);
         }
         return fileName;
@@ -132,11 +134,11 @@ public class ImageScraper
             if(httpResponse.statusCode() == 200)
             {
                 Files.copy(httpResponse.body(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Successfully downloaded: " + fileName);
+                log.info("Successfully downloaded: " + fileName);
             }
             else
             {
-                System.out.println("HTTP Error: " + httpResponse.statusCode());
+                log.info("HTTP Error: " + httpResponse.statusCode());
             }
         }
         catch (IOException | InterruptedException e)

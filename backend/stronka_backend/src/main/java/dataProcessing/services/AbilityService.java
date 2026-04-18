@@ -8,6 +8,7 @@ import dataProcessing.models.StatusEffectEntity;
 import dataProcessing.repositories.AbilityRepository;
 import dataProcessing.repositories.join_tables.AbilityStatusEffectsRepository;
 import dataProcessing.repositories.StatusEffectRepository;
+import dataProcessing.exceptions.MissingDatabaseEntryException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -51,8 +52,7 @@ public class AbilityService
         {
             if(statusEffectRepository.findById(index).isEmpty())
             {
-                System.out.println("NIE ZNALEZIONO STATUS EFFECTU!");
-                continue;
+                throw new MissingDatabaseEntryException(index);
             }
             StatusEffectEntity savedStatusEffect = statusEffectRepository.getReferenceById(index);
             AbilityStatusEffects abilityStatusEffects = new AbilityStatusEffects();

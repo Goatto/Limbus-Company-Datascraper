@@ -2,6 +2,7 @@ package dataProcessing.models;
 
 import dataProcessing.models.join_tables.IDAbility;
 import dataProcessing.models.join_tables.IDPassive;
+import dataProcessing.models.join_tables.IDSupportPassive;
 import dataProcessing.webScraper.enums.Rarity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -84,7 +85,7 @@ public class IDEntity
     private List<IDPassive> combatPassive = new ArrayList<>();
 
     @OneToMany(mappedBy = "idName", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<IDPassive> supportPassive;
+    private List<IDSupportPassive> supportPassive = new ArrayList<>();;
 
     // Tutaj będzie nawiązanie do sinnera
     // private String sinnerName;

@@ -8,11 +8,14 @@ import dataProcessing.models.StatusEffectEntity;
 import dataProcessing.repositories.PassiveRepository;
 import dataProcessing.repositories.join_tables.PassiveStatusEffectRepository;
 import dataProcessing.repositories.StatusEffectRepository;
+import dataProcessing.exceptions.MissingDatabaseEntryException;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 // TODO, dodać sprawdzanie czy dane są już w DB
+@Slf4j
 @Service
 public class PassiveService
 {
@@ -42,8 +45,7 @@ public class PassiveService
         {
             if(statusEffectRepository.findById(index).isEmpty())
             {
-                System.out.println("NIE ZNALEZIONO STATUS EFFECTU!");
-                continue;
+                throw new MissingDatabaseEntryException(index);
             }
             StatusEffectEntity savedStatusEffect = statusEffectRepository.getReferenceById(index);
             PassiveStatusEffects passiveStatusEffects = new PassiveStatusEffects();

@@ -2,6 +2,7 @@ package dataProcessing.webScraper;
 
 import dataProcessing.ScraperDataDTOs;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
@@ -11,6 +12,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 // FIXME Poprawić jak zbierasz status-effecty
+@Slf4j
 public class ScraperNodeVisitors
 {
     /**
@@ -150,13 +152,13 @@ public class ScraperNodeVisitors
                                 .filter(line -> !line.isEmpty())
                                 .toList();
 
-                System.out.println("Passive title: " + finalTitle);
-                System.out.println("Cost: " + finalCost);
-                System.out.println("Cost type: " + finalCostType);
-                System.out.println("Description: ");
+                log.info("Passive title: " + finalTitle);
+                log.info("Cost: " + finalCost);
+                log.info("Cost type: " + finalCostType);
+                log.info("Description: ");
                 for(String descriptionLine : finalEffects)
                 {
-                    System.out.println(descriptionLine);
+                    log.info(descriptionLine);
                 }
 
                 this.resultPassive = new ScraperDataDTOs.Passive(
@@ -169,7 +171,7 @@ public class ScraperNodeVisitors
         }
         private ScraperDataDTOs.Passive getBuiltPassive()
         {
-            System.out.println(statusEffectsBuffer);
+            log.info(statusEffectsBuffer.toString());
             return this.resultPassive;
         }
     }
@@ -328,7 +330,7 @@ public class ScraperNodeVisitors
 
         public AbilityResult getResult()
         {
-            System.out.println(statusEffects);
+            log.info(statusEffects.toString());
             return new AbilityResult(getBaseEffects(), getCoinEffects(), getStatusEffects());
         }
     }

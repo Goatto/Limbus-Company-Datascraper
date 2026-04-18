@@ -4,15 +4,13 @@ import dataProcessing.ScraperDataDTOs;
 import dataProcessing.models.AbilityEntity;
 import dataProcessing.models.IDEntity;
 import dataProcessing.models.PassiveEntity;
-import dataProcessing.models.join_tables.IDAbility;
-import dataProcessing.models.join_tables.IDAbilityID;
-import dataProcessing.models.join_tables.IDPassive;
-import dataProcessing.models.join_tables.IDPassiveID;
+import dataProcessing.models.join_tables.*;
 import dataProcessing.repositories.AbilityRepository;
 import dataProcessing.repositories.IDRepository;
 import dataProcessing.repositories.PassiveRepository;
 import dataProcessing.repositories.join_tables.IDAbilityRepository;
 import dataProcessing.repositories.join_tables.IDPassiveRepository;
+import dataProcessing.repositories.join_tables.IDSupportPassiveRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -25,16 +23,18 @@ public class IDService
     private final AbilityRepository abilityRepository;
     private final PassiveRepository passiveRepository;
     private final IDPassiveRepository idPassiveRepository;
+    private final IDSupportPassiveRepository idSupportPassiveRepository;
     private final IDAbilityRepository idAbilityRepository;
 
 
     public IDService(IDRepository idRepository, AbilityRepository abilityRepository, PassiveRepository passiveRepository,
-                     IDPassiveRepository idPassiveRepository, IDAbilityRepository idAbilityRepository)
+                     IDPassiveRepository idPassiveRepository, IDSupportPassiveRepository idSupportPassiveRepository, IDAbilityRepository idAbilityRepository)
     {
         this.idRepository = idRepository;
         this.abilityRepository = abilityRepository;
         this.passiveRepository = passiveRepository;
         this.idPassiveRepository = idPassiveRepository;
+        this.idSupportPassiveRepository = idSupportPassiveRepository;
         this.idAbilityRepository = idAbilityRepository;
     }
 
@@ -45,12 +45,12 @@ public class IDService
         IDEntity savedEntity = idRepository.save(idEntity);
         for(UUID uuid : newID.combatPassives())
         {
-            getPassives(savedEntity, uuid);
+            getCombatPassive(savedEntity, uuid);
         }
 
         for(UUID uuid : newID.supportPassives())
         {
-            getPassives(savedEntity, uuid);
+            getSupportPassive(savedEntity, uuid);
         }
 
         for(UUID uuid : newID.abilities())
@@ -90,7 +90,7 @@ public class IDService
         return idEntity;
     }
 
-    private void getPassives(IDEntity savedEntity, UUID uuid)
+    private void getCombatPassive(IDEntity savedEntity, UUID uuid)
     {
         PassiveEntity savedPassive = passiveRepository.getReferenceById(uuid);
         IDPassive idPassive = new IDPassive();
@@ -99,5 +99,16 @@ public class IDService
         idPassive.setPassive(savedPassive);
         IDPassive savedIDPassive = idPassiveRepository.save(idPassive);
         savedEntity.getCombatPassive().add(savedIDPassive);
+    }
+
+    private void getSupportPassive(IDEntity savedEntity, UUID uuid)
+    {
+        PassiveEntity savedPassive = passiveRepository.getReferenceById(uuid);
+        IDSupportPassive idSupportPassive = new IDSupportPassive();
+        idSupportPassive.setId(new IDSupportPassiveID(savedEntity.getName(), uuid));
+        idSupportPassive.setIdName(savedEntity);
+        idSupportPassive.setPassive(savedPassive);
+        IDSupportPassive savedIDSupportPassive = idSupportPassiveRepository.save(idSupportPassive);
+        savedEntity.getSupportPassive().add(savedIDSupportPassive);
     }
 }

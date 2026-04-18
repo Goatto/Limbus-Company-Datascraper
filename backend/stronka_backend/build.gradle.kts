@@ -17,6 +17,9 @@ dependencies {
     // Scraping
     implementation("org.jsoup:jsoup:1.22.1")
 
+    // Logging
+    implementation("org.jboss.logging:jboss-logging:3.6.1.Final")
+
     // Lombok
     compileOnly("org.projectlombok:lombok:1.18.44")
     annotationProcessor("org.projectlombok:lombok:1.18.44")

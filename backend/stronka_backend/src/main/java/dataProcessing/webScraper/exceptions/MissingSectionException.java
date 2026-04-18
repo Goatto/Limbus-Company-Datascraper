@@ -1,6 +1,8 @@
 package dataProcessing.webScraper.exceptions;
 
-public class MissingSectionException extends ScraperException
+import dataProcessing.exceptions.DataProcessorException;
+
+public class MissingSectionException extends DataProcessorException
 {
     public MissingSectionException(String exceptionField)
     {

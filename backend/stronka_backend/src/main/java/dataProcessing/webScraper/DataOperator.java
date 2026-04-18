@@ -3,7 +3,7 @@ package dataProcessing.webScraper;
 import dataProcessing.DTOBuilders;
 import dataProcessing.services.EGOService;
 import dataProcessing.services.IDService;
-import dataProcessing.services.SinnerService;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Component
 public class DataOperator
 {
@@ -64,7 +65,7 @@ public class DataOperator
             }
             else
             {
-                System.out.println("Null: " + category);
+                log.info("Null: {}", category);
             }
         }
         return outputLinks;
@@ -125,12 +126,12 @@ public class DataOperator
         {
             try
             {
-                System.out.println("Attempt " + (currentAttemptCount + 1) + " to scrape " + url);
+                log.info("Attempt {} to scrape {}", currentAttemptCount + 1, url);
                 Document document = Jsoup.connect(url)
                         .timeout(8000)
                         .headers(jsoupHeaders)
                         .get();
-                System.out.println("Scraped " + url);
+                log.info("Scraped {}", url);
                 // TODO Nie wiem czy to nie może przypadkiem jakiś problemów sprawić, więc sobie zaznaczam na później
                 document.select(".tooltip-contents").remove();
                 return document;

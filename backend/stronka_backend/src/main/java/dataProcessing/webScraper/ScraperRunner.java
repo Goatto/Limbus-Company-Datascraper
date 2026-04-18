@@ -1,15 +1,18 @@
 package dataProcessing.webScraper;
 
 import dataProcessing.services.SinnerService;
-import dataProcessing.webScraper.exceptions.ScraperException;
+import dataProcessing.exceptions.DataProcessorException;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static dataProcessing.webScraper.DataOperator.*;
+import static dataProcessing.webScraper.DataOperator.linkScraper;
+import static dataProcessing.webScraper.DataOperator.scrapeData;
 
+@Slf4j
 @Component
 /*
     CommandLineRunner to interface, który pozwala na wykonanie kodu, kiedy kontekst aplikacji spring zostanie
@@ -61,7 +64,7 @@ public class ScraperRunner implements CommandLineRunner
                 // Odpowiednie za zbieranie 'statycznych danych' i.e. takich danych, które wielokrotnie pojawiają się
                 // na różnych stronkach, głównie wykorzystane do pobrania ikonek status effectów
 
-                System.out.println("Scraping status effects: ");
+                log.info("Scraping status effects: ");
                 Document selectedPage = scrapeData(statusEffects);
 
                 if(selectedPage != null)
@@ -69,7 +72,7 @@ public class ScraperRunner implements CommandLineRunner
                     statusEffectsScraper.scrapeStatusEffectData(selectedPage);
                 }
 
-                System.out.println("Scraping static pages: ");
+                log.info("Scraping static pages: ");
                 for(String urlDocument : genericAssetScraper)
                 {
                     selectedPage = scrapeData(urlDocument);
@@ -88,23 +91,24 @@ public class ScraperRunner implements CommandLineRunner
                 List<String> urlLists = linkScraper(urls);
                 for(String urlDocument : urlLists)
                 {
-                    try {
-                        selectedPage = scrapeData(urlDocument);
-                        if (selectedPage != null) {
-                            dataOperator.parseData(selectedPage);
-                        }
-                    }
-                    catch(ScraperException e)
-                    {
-                        System.out.println("Caught error at: " + e);
-                        continue;
-                    }
                     // Jak za szybko będziemy przechodzić, to otrzymamy status: '429 Too Many Requests'
                     try
                     {
                         Thread.sleep(3000);
                     }
                     catch (InterruptedException _) {}
+                    try
+                    {
+                        selectedPage = scrapeData(urlDocument);
+                        if (selectedPage != null) {
+                            dataOperator.parseData(selectedPage);
+                        }
+                    }
+                    catch(DataProcessorException e)
+                    {
+                        log.info("Caught error at: {}", String.valueOf(e));
+                        continue;
+                    }
                 }
                 sinnerService.buildSinners();
             }

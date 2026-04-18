@@ -1,6 +1,8 @@
 package dataProcessing.webScraper.exceptions;
 
-public class MissingImageException extends ScraperException
+import dataProcessing.exceptions.DataProcessorException;
+
+public class MissingImageException extends DataProcessorException
 {
     public MissingImageException(String exceptionField)
     {

@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 
 import static dataProcessing.webScraper.utils.ImageScraper.scrapeImageURL;
 
-// TODO Dodać logger
 // TODO Rozbić klasę na pomniejsze
 @Slf4j
 @Component
@@ -645,7 +644,7 @@ public class WikimediaScraper
         {
             abilityBuilder.setSkillSlot(skillSlot);
         }
-        log.info("\nPROCESSING: {}", skillSlot);
+        log.info("PROCESSING: {}", skillSlot);
 
         // Zwraca pusty pojemnik, jeżeli nie istnieje
         Elements columns = Optional.ofNullable(abilityContainer.select("table tr").first())
