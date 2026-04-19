@@ -52,7 +52,7 @@ public class AbilityService
         {
             if(statusEffectRepository.findById(index).isEmpty())
             {
-                throw new MissingDatabaseEntryException(index);
+                continue;
             }
             StatusEffectEntity savedStatusEffect = statusEffectRepository.getReferenceById(index);
             AbilityStatusEffects abilityStatusEffects = new AbilityStatusEffects();

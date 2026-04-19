@@ -1,8 +1,5 @@
 package dataProcessing.webScraper;
 
-import dataProcessing.DTOBuilders;
-import dataProcessing.services.EGOService;
-import dataProcessing.services.IDService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -20,20 +17,16 @@ import java.util.Map;
 public class DataOperator
 {
     private final WikimediaScraper wikimediaScraper;
-    private final EGOService EGOService;
-    private final IDService IDService;
     private static final int retryCount = 3;
 
-    public DataOperator(WikimediaScraper wikimediaScraper, EGOService egoService, IDService idService)
+    public DataOperator(WikimediaScraper wikimediaScraper)
     {
         this.wikimediaScraper = wikimediaScraper;
-        EGOService = egoService;
-        IDService = idService;
     }
 
     // Na razie do sprawdzenia jak zbiera się linki, później będę musiał to inaczej zrobić z racji,
     // że każda stronka ma inną strukturę więc parser będzie musiał brać to pod uwagę
-    static List<String> linkScraper(List<String> categories)
+    List<String> linkScraper(List<String> categories)
     {
         List<String> outputLinks = new ArrayList<>();
         // Whitelist z racji, że w nazwach ID TAKŻE mamy nazwy jednostki, więc będzie mniej brudu
@@ -78,38 +71,21 @@ public class DataOperator
         for(Element category : categories)
         {
             String categoryText = category.text();
-            if (categoryText.equals("Identities"))
-            {
-                DTOBuilders.IDDataBuilder builder = new DTOBuilders.IDDataBuilder();
 
-                // Jeżeli w tym miejscu otrzymamy null, strona nie jest skończona, i próba wyjęcia z jej wartości
-                // wyrzuci program
-                if(WikimediaScraper.scrapeGeneralIDData(htmlContent, builder) == null)
-                {
-                    break;
-                }
-                WikimediaScraper.scrapeSanityData(htmlContent, builder);
-                wikimediaScraper.scrapeIDAbilityData(htmlContent, builder);
-                wikimediaScraper.scrapePassiveData(htmlContent, builder);
-                IDService.saveNewID(builder.buildIDData());
-            }
-            else if (categoryText.equals("E.G.O"))
+            if(categoryText.equals("Identities"))
             {
-                DTOBuilders.EGODataBuilder builder = new DTOBuilders.EGODataBuilder();
-
-                // TODO podobne sprawdzenie przed niedokończoną stroną zrobić tu
-                if(wikimediaScraper.scrapeEGOAbilities(htmlContent, builder) == null)
-                {
-                    break;
-                }
-                wikimediaScraper.scrapePassiveData(htmlContent, builder);
-                EGOService.saveNewEGO(builder.buildEGOData());
+                wikimediaScraper.processIdentity(htmlContent);
+                break;
             }
-            break;
+            else if(categoryText.equals("E.G.O"))
+            {
+                wikimediaScraper.processEgo(htmlContent);
+                break;
+            }
         }
     }
 
-    static Document scrapeData(String url)
+    Document scrapeData(String url)
     {
         Map<String, String> jsoupHeaders = Map.of(
                 // Nasz userAgent

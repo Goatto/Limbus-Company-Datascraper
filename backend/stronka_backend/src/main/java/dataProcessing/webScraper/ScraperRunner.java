@@ -9,8 +9,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static dataProcessing.webScraper.DataOperator.linkScraper;
-import static dataProcessing.webScraper.DataOperator.scrapeData;
 
 @Slf4j
 @Component
@@ -65,7 +63,7 @@ public class ScraperRunner implements CommandLineRunner
                 // na różnych stronkach, głównie wykorzystane do pobrania ikonek status effectów
 
                 log.info("Scraping status effects: ");
-                Document selectedPage = scrapeData(statusEffects);
+                Document selectedPage = dataOperator.scrapeData(statusEffects);
 
                 if(selectedPage != null)
                 {
@@ -75,7 +73,7 @@ public class ScraperRunner implements CommandLineRunner
                 log.info("Scraping static pages: ");
                 for(String urlDocument : genericAssetScraper)
                 {
-                    selectedPage = scrapeData(urlDocument);
+                    selectedPage = dataOperator.scrapeData(urlDocument);
                     if(selectedPage != null)
                     {
                         GenericDataScraping.checkPageType(selectedPage);
@@ -88,7 +86,7 @@ public class ScraperRunner implements CommandLineRunner
                 }
 
                 // Wyłapanie wszystkich linków z dwóch głównych katalogów
-                List<String> urlLists = linkScraper(urls);
+                List<String> urlLists = dataOperator.linkScraper(urls);
                 for(String urlDocument : urlLists)
                 {
                     // Jak za szybko będziemy przechodzić, to otrzymamy status: '429 Too Many Requests'
@@ -99,7 +97,7 @@ public class ScraperRunner implements CommandLineRunner
                     catch (InterruptedException _) {}
                     try
                     {
-                        selectedPage = scrapeData(urlDocument);
+                        selectedPage = dataOperator.scrapeData(urlDocument);
                         if (selectedPage != null) {
                             dataOperator.parseData(selectedPage);
                         }
@@ -107,7 +105,6 @@ public class ScraperRunner implements CommandLineRunner
                     catch(DataProcessorException e)
                     {
                         log.info("Caught error at: {}", String.valueOf(e));
-                        continue;
                     }
                 }
                 sinnerService.buildSinners();

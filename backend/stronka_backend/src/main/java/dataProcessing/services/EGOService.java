@@ -27,7 +27,7 @@ public class EGOService
     private final EGOPassiveRepository egoPassiveRepository;
     private final EGOAbilityRepository egoAbilityRepository;
 
-    public EGOService(EGORepository egoRepository, AbilityService abilityService, AbilityRepository abilityRepository, PassiveRepository passiveRepository, EGOPassiveRepository egoPassiveRepository, EGOAbilityRepository egoAbilityRepository)
+    public EGOService(EGORepository egoRepository, AbilityRepository abilityRepository, PassiveRepository passiveRepository, EGOPassiveRepository egoPassiveRepository, EGOAbilityRepository egoAbilityRepository)
     {
         this.egoRepository = egoRepository;
         this.abilityRepository = abilityRepository;
